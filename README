@@ -45,5 +45,15 @@ FDK:
 L-SMASH:
   - Added some new ITUNES_METADATA_ITEM_* constants
   - Added lsmash_set_itunes_metadata_custom function which allows to add iTunes metadata with arbitrary data types
-  - 'free' atom is inserted into 'udta' atom for padding
+  - 'free' atom is inserted into 'meta' atom for padding
+
+
+CREDITS
+-------
+
+This plugin includes the code from
+  - FDK AAC Encoder https://github.com/mstorsjo/fdk-aac
+  - L-SMASH https://code.google.com/p/l-smash/
+
+For the license of these products, see fdk-aac/NOTICE and l-smash/LICENSE, respectively.
 
