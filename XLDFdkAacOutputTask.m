@@ -213,7 +213,7 @@ fail:
 	lsmash_media_parameters_t media_param;
 	lsmash_initialize_media_parameters( &media_param );
 	media_param.ISO_language = ISOM_LANGUAGE_CODE_ENGLISH;
-	media_param.timescale = sbrEnabled ? 22050 : 44100;
+	media_param.timescale = sbrEnabled ? format.samplerate/2 : format.samplerate;
 	media_param.media_handler_name = "L-SMASH Audio Handler";
 	media_param.roll_grouping = 0;
 	lsmash_set_media_parameters( root, tid, &media_param );
@@ -539,8 +539,14 @@ fail:
 		uint32_t delay = info.encoderDelay;
 		uint64_t duration = totalFrames;
 		if(sbrEnabled) {
-			delay = 2048;
 			duration /= 2;
+#if 1
+			/* HACK for iTunes : Apple's decoder does not play gaplessly with the provided delay value */
+			if(!psEnabled) delay = 2048;
+			else delay = 2544;
+#else
+			delay /= 2;
+#endif
 		}
 		uint32_t padding = (uint32_t)ceil((duration + delay)/1024.0)*1024 - (duration + delay);
 		sprintf(iTunSMPB," 00000000 %08X %08X %016llX 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",delay,padding,duration);
