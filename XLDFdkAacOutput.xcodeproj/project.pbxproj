@@ -978,8 +978,6 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS_i386 = "/usr/local/lib/libfdk-aac.a -llsmash";
-				OTHER_LDFLAGS_ppc = "/opt/ppc/lib/libfdk-aac.a -llsmash";
 				PREBINDING = NO;
 			};
 			name = Debug;
