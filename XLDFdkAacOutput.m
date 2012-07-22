@@ -120,34 +120,34 @@
 	}
 	switch ([o_vbrQuality intValue]) {
 		case 0:
-			[o_summary setStringValue:@"Quality 0: HE-AAC v2, ~32kbps"];
+			[o_summary setStringValue:@"Quality 0: HE-AAC v2, ~35kbps"];
 			break;
 		case 1:
-			[o_summary setStringValue:@"Quality 1: HE-AAC v2, ~48kbps"];
+			[o_summary setStringValue:@"Quality 1: HE-AAC v2, ~45kbps"];
 			break;
 		case 2:
 			[o_summary setStringValue:@"Quality 2: HE-AAC, ~50kbps"];
 			break;
 		case 3:
-			[o_summary setStringValue:@"Quality 3: HE-AAC, ~70kbps"];
+			[o_summary setStringValue:@"Quality 3: HE-AAC, ~75kbps"];
 			break;
 		case 4:
-			[o_summary setStringValue:@"Quality 4: HE-AAC, ~96kbps"];
+			[o_summary setStringValue:@"Quality 4: HE-AAC, ~85kbps"];
 			break;
 		case 5:
-			[o_summary setStringValue:@"Quality 5: HE-AAC, ~110kbps"];
+			[o_summary setStringValue:@"Quality 5: HE-AAC, ~100kbps"];
 			break;
 		case 6:
-			[o_summary setStringValue:@"Quality 6: LC-AAC, ~120kbps"];
+			[o_summary setStringValue:@"Quality 6: LC-AAC, ~110kbps"];
 			break;
 		case 7:
 			[o_summary setStringValue:@"Quality 7: LC-AAC, ~130kbps"];
 			break;
 		case 8:
-			[o_summary setStringValue:@"Quality 8: LC-AAC, ~160kbps"];
+			[o_summary setStringValue:@"Quality 8: LC-AAC, ~150kbps"];
 			break;
 		case 9:
-			[o_summary setStringValue:@"Quality 9: LC-AAC, ~260kbps"];
+			[o_summary setStringValue:@"Quality 9: LC-AAC, ~250kbps"];
 			break;
 		default:
 			break;
