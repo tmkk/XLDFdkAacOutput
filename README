@@ -1,0 +1,49 @@
+WHAT IS THIS?
+-------------
+
+This is a FDK AAC encoder plugin for an application named X Lossless Decoder (XLD). XLD works on Mac OS X 10.4 and later. Get it from http://tmkk.pv.land.to/xld/index_e.html
+
+
+HOW TO USE
+----------
+
+1. Build with Xcode (release build is recommended)
+2. Copy XLDFdkAacOutput.plugin to ~/Library/Application Support/XLD/PlugIns directory
+3. Launch XLD and configure the plugin
+
+
+VBR QUALITY MAPPING
+-------------------
+
+VBR Quality is mapped to 10 independent degrees according to AACENC_AOT and AACENC_BITRATEMODE parameters in the FDK AAC encoder.
+
+Here is a mapping:
+
+    QUALITY | AACENC_AOT | AACENC_BITRATEMODE
+   ---------+------------+--------------------
+       0    | 29 (HE v2) |          1
+       1    |     29     |          2
+       2    |   5 (HE)   |          1
+       3    |      5     |          2
+       4    |      5     |          3
+       5    |      5     |          4
+       6    |   2 (LC)   |          2
+       7    |      2     |          3
+       8    |      2     |          4
+       9    |      2     |          5
+
+
+SOURCE CODE MODIFICATIONS
+-------------------------
+
+Some modifications are added to the original source code.
+
+FDK:
+  - Added inline assembly optimization for leading-zero counting routine (x86/ppc)
+  - Added inline assembly optimization for multiply-and-shift routine (ppc)
+
+L-SMASH:
+  - Added some new ITUNES_METADATA_ITEM_* constants
+  - Added lsmash_set_itunes_metadata_custom function which allows to add iTunes metadata with arbitrary data types
+  - 'free' atom is inserted into 'udta' atom for padding
+
