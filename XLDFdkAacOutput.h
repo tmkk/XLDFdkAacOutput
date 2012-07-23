@@ -16,11 +16,14 @@
 	IBOutlet id o_bitrate;
 	IBOutlet id o_vbrQuality;
 	IBOutlet id o_summary;
+	IBOutlet id o_manualLPF;
+	IBOutlet id o_LPFFreq;
 	IBOutlet id o_text1;
 	IBOutlet id o_text2;
 	IBOutlet id o_text3;
 	IBOutlet id o_text4;
 	IBOutlet id o_text5;
+	IBOutlet id o_text6;
 }
 
 + (NSString *)pluginName;

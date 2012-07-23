@@ -41,6 +41,8 @@
 	[pref setInteger:[o_bitrate intValue] forKey:@"XLDFdkAacOutput_Bitrate"];
 	[pref setInteger:[o_vbrQuality intValue] forKey:@"XLDFdkAacOutput_VBRQuality"];
 	[pref setInteger:[[o_complexity selectedCell] tag] forKey:@"XLDFdkAacOutput_Complexity"];
+	[pref setInteger:[o_manualLPF state] forKey:@"XLDFdkAacOutput_ManualLPF"];
+	[pref setInteger:[o_LPFFreq intValue] forKey:@"XLDFdkAacOutput_LPFFreq"];
 	[pref synchronize];
 }
 
@@ -60,6 +62,12 @@
 	return [[XLDFdkAacOutputTask alloc] initWithConfigurations:cfg];
 }
 
+- (unsigned int)LPFFreq
+{
+	if([o_manualLPF state] == NSOffState) return 0;
+	return [o_LPFFreq intValue];
+}
+
 - (NSMutableDictionary *)configurations
 {
 	NSMutableDictionary *cfg = [[NSMutableDictionary alloc] init];
@@ -68,11 +76,14 @@
 	[cfg setObject:[NSNumber numberWithInt:[o_bitrate intValue]] forKey:@"XLDFdkAacOutput_Bitrate"];
 	[cfg setObject:[NSNumber numberWithInt:[o_vbrQuality intValue]] forKey:@"XLDFdkAacOutput_VBRQuality"];
 	[cfg setObject:[NSNumber numberWithInt:[[o_complexity selectedCell] tag]] forKey:@"XLDFdkAacOutput_Complexity"];
+	[cfg setObject:[NSNumber numberWithInt:[o_manualLPF state]] forKey:@"XLDFdkAacOutput_ManualLPF"];
+	[cfg setObject:[NSNumber numberWithInt:[o_LPFFreq intValue]] forKey:@"XLDFdkAacOutput_LPFFreq"];
 	/* for task */
 	[cfg setObject:[NSNumber numberWithUnsignedInt:[o_encoderMode indexOfSelectedItem]] forKey:@"Mode"];
 	[cfg setObject:[NSNumber numberWithUnsignedInt:[o_bitrate intValue]*1000] forKey:@"Bitrate"];
 	[cfg setObject:[NSNumber numberWithUnsignedInt:[o_vbrQuality intValue]] forKey:@"VBRQuality"];
 	[cfg setObject:[NSNumber numberWithUnsignedInt:[[o_complexity selectedCell] tag]] forKey:@"Complexity"];
+	[cfg setObject:[NSNumber numberWithUnsignedInt:[self LPFFreq]] forKey:@"LPFFreq"];
 	/* desc */
 	if([o_encoderMode indexOfSelectedItem] == 0) {
 		if([[o_complexity selectedCell] tag] == 0)
@@ -152,6 +163,14 @@
 		default:
 			break;
 	}
+	if([o_manualLPF state] == NSOnState) {
+		[o_LPFFreq setEnabled:YES];
+		[o_text6 setTextColor:[NSColor blackColor]];
+	}
+	else {
+		[o_LPFFreq setEnabled:NO];
+		[o_text6 setTextColor:[NSColor grayColor]];
+	}
 }
 
 - (void)loadConfigurations:(id)cfg
@@ -168,6 +187,12 @@
 	}
 	if(obj=[cfg objectForKey:@"XLDFdkAacOutput_Complexity"]) {
 		[o_complexity selectCellWithTag:[obj intValue]];
+	}
+	if(obj=[cfg objectForKey:@"XLDFdkAacOutput_ManualLPF"]) {
+		[o_manualLPF setState:[obj intValue]];
+	}
+	if(obj=[cfg objectForKey:@"XLDFdkAacOutput_LPFFreq"]) {
+		[o_LPFFreq setIntValue:[obj intValue]];
 	}
 	[self modeChanged:self];
 }

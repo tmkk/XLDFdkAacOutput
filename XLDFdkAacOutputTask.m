@@ -155,6 +155,15 @@ void freeDesc(AACENC_BufDesc *desc)
 		fprintf(stderr,"aacEncoder_SetParam (AACENC_AFTERBURNER) error 0x%x\n",err);
 		goto fail;
 	}
+	if([configurations objectForKey:@"LPFFreq"]) {
+		unsigned int LPFFreq = [[configurations objectForKey:@"LPFFreq"] unsignedIntValue];
+		if(LPFFreq > format.samplerate / 2) LPFFreq = format.samplerate / 2;
+		err = aacEncoder_SetParam(encoder,AACENC_BANDWIDTH,LPFFreq);
+		if(err != AACENC_OK) {
+			fprintf(stderr,"aacEncoder_SetParam (AACENC_BANDWIDTH) error 0x%x\n",err);
+			goto fail;
+		}
+	}
 	err = aacEncoder_SetParam(encoder,AACENC_TRANSMUX,0);
 	if(err != AACENC_OK) {
 		fprintf(stderr,"aacEncoder_SetParam (AACENC_TRANSMUX) error 0x%x\n",err);
