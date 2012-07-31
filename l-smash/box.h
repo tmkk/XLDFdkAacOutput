@@ -1233,7 +1233,7 @@ typedef struct
     isom_dinf_t *dinf;      /* ISOM: Data Information Box / QTFF: null */
     isom_keys_t *keys;      /* ISOM: null / QTFF: Metadata Item Keys Box */
     isom_ilst_t *ilst;      /* Metadata Item List Box only defined in Apple MPEG-4 and QTFF */
-	isom_free_t *free;      /* Padding */
+    isom_free_t *free;      /* Padding */
 } isom_meta_t;
 
 /* Window Location Box */

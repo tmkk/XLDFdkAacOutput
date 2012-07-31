@@ -1,0 +1,125 @@
+diff --git box.h box.h
+index 56fd065..db1ce44 100644
+--- box.h
++++ box.h
+@@ -1233,6 +1233,7 @@ typedef struct
+     isom_dinf_t *dinf;      /* ISOM: Data Information Box / QTFF: null */
+     isom_keys_t *keys;      /* ISOM: null / QTFF: Metadata Item Keys Box */
+     isom_ilst_t *ilst;      /* Metadata Item List Box only defined in Apple MPEG-4 and QTFF */
++    isom_free_t *free;      /* Padding */
+ } isom_meta_t;
+ 
+ /* Window Location Box */
+diff --git isom.c isom.c
+index f2b0dcf..4ba59e1 100644
+--- isom.c
++++ isom.c
+@@ -528,9 +528,9 @@ static int isom_add_visual_extensions( isom_visual_entry_t *visual, lsmash_video
+             return -1;
+         }
+         isom_colr_t *colr = visual->colr;
+-        uint16_t primaries = summary->primaries;
+-        uint16_t transfer  = summary->transfer;
+-        uint16_t matrix    = summary->matrix;
++        uint32_t primaries = summary->primaries;
++        uint32_t transfer  = summary->transfer;
++        uint32_t matrix    = summary->matrix;
+         /* Set 'nclc' to parameter type, we don't support 'prof'. */
+         colr->color_parameter_type = QT_COLOR_PARAMETER_TYPE_NCLC;
+         /* primaries */
+@@ -2494,6 +2494,16 @@ int isom_add_meta( isom_box_t *parent )
+             return -1;
+         }
+         udta->meta = meta;
++        isom_create_box( skip, parent, ISOM_BOX_TYPE_FREE );
++        if( meta->free )
++        {
++            free( skip );
++            return -1;
++        }
++        meta->free = skip;
++        skip->data = calloc(1, 4096);
++        skip->length = 4096;
++        skip->size = 8 + skip->length;
+     }
+     return 0;
+ }
+@@ -3477,6 +3487,11 @@ static void isom_remove_meta( isom_meta_t *meta )
+     isom_remove_dinf( meta->dinf );
+     isom_remove_keys( meta->keys );
+     isom_remove_ilst( meta->ilst );
++    if( meta->free) {
++        free( meta->free->data );
++        free( meta->free );
++        meta->free = NULL;
++    }
+     if( meta->parent )
+     {
+         if( !meta->parent->type )
+@@ -5362,6 +5377,7 @@ static uint64_t isom_update_meta_size( isom_meta_t *meta )
+         + isom_update_hdlr_size( meta->hdlr )
+         + isom_update_dinf_size( meta->dinf )
+         + isom_update_ilst_size( meta->ilst );
++    if( meta->free ) meta->size += meta->free->size;
+     CHECK_LARGESIZE( meta->size );
+     return meta->size;
+ }
+diff --git lsmash.h lsmash.h
+index b14aebb..ff59dd2 100644
+--- lsmash.h
++++ lsmash.h
+@@ -971,6 +971,11 @@ typedef enum
+     ITUNES_METADATA_ITEM_TV_NETWORK                 = LSMASH_4CC( 't', 'v', 'n', 'n' ),     /* TV Network Name */
+     ITUNES_METADATA_ITEM_TV_SHOW_NAME               = LSMASH_4CC( 't', 'v', 's', 'h' ),     /* TV Show Name */
+     ITUNES_METADATA_ITEM_ITUNES_PURCHASE_ACCOUNT_ID = LSMASH_4CC( 'a', 'p', 'I', 'D' ),     /* iTunes Account Used for Purchase */
++    ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT          = LSMASH_4CC( 's', 'o', 'n', 'm' ),
++    ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT         = LSMASH_4CC( 's', 'o', 'a', 'r' ),
++    ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT          = LSMASH_4CC( 's', 'o', 'a', 'l' ),
++    ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT    = LSMASH_4CC( 's', 'o', 'a', 'a' ),
++    ITUNES_METADATA_ITEM_ITUNES_COMPOSER_SORT       = LSMASH_4CC( 's', 'o', 'c', 'o' ),
+ 
+     /* Integer type
+      * (X): X means length of bytes */
+diff --git meta.c meta.c
+index 4ecb84a..9900ce8 100644
+--- meta.c
++++ meta.c
+@@ -178,7 +178,8 @@ static int isom_set_itunes_metadata_binary( lsmash_root_t *root,
+         case ITUNES_METADATA_ITEM_COVER_ART :
+             if( value.binary.subtype != ITUNES_METADATA_SUBTYPE_JPEG
+              && value.binary.subtype != ITUNES_METADATA_SUBTYPE_PNG
+-             && value.binary.subtype != ITUNES_METADATA_SUBTYPE_BMP )
++             && value.binary.subtype != ITUNES_METADATA_SUBTYPE_BMP
++             && value.binary.subtype != ITUNES_METADATA_SUBTYPE_GIF )
+                 return -1;
+             break;
+         case ITUNES_METADATA_ITEM_DISC_NUMBER :
+@@ -261,6 +262,11 @@ int lsmash_set_itunes_metadata( lsmash_root_t *root,
+             { ITUNES_METADATA_ITEM_TV_NETWORK,                 isom_set_itunes_metadata_string },
+             { ITUNES_METADATA_ITEM_TV_SHOW_NAME,               isom_set_itunes_metadata_string },
+             { ITUNES_METADATA_ITEM_ITUNES_PURCHASE_ACCOUNT_ID, isom_set_itunes_metadata_string },
++            { ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT,          isom_set_itunes_metadata_string },
++            { ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT,         isom_set_itunes_metadata_string },
++            { ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT,          isom_set_itunes_metadata_string },
++            { ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT,    isom_set_itunes_metadata_string },
++			{ ITUNES_METADATA_ITEM_ITUNES_COMPOSER_SORT,       isom_set_itunes_metadata_string },
+             { ITUNES_METADATA_ITEM_EPISODE_GLOBAL_ID,          isom_set_itunes_metadata_integer },
+             { ITUNES_METADATA_ITEM_PREDEFINED_GENRE,           isom_set_itunes_metadata_integer },
+             { ITUNES_METADATA_ITEM_CONTENT_RATING,             isom_set_itunes_metadata_integer },
+diff --git write.c write.c
+index 2d78223..1adf964 100644
+--- write.c
++++ write.c
+@@ -1359,6 +1359,12 @@ int isom_write_meta( lsmash_bs_t *bs, isom_meta_t *meta )
+      || isom_write_dinf( bs, meta->dinf, meta->type )
+      || isom_write_ilst( bs, meta->ilst ) )
+         return -1;
++    if( meta->free) {
++       isom_bs_put_box_common( bs, meta->free );
++        if( meta->free->data && meta->free->length )
++            lsmash_bs_put_bytes( bs, meta->free->length, meta->free->data );
++        lsmash_bs_write_data( bs );
++    }
+     return 0;
+ }
+ 

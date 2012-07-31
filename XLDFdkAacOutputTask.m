@@ -278,6 +278,7 @@ fail:
 			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_COMPOSER, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TRACK] || [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TOTALTRACKS]) {
+			lsmash_itunes_metadata_t item;
 			NSMutableData *tagData = [NSMutableData data];
 			[tagData increaseLengthBy:2];
 			short tmp = 0;
@@ -293,9 +294,13 @@ fail:
 			}
 			[tagData appendBytes:&tmp length:2];
 			[tagData increaseLengthBy:2];
-			lsmash_set_itunes_metadata_custom(root,ITUNES_METADATA_ITEM_TRACH_NUMBER,0,(void*)[tagData bytes],[tagData length],NULL,NULL);
+			item.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
+			item.binary.size = [tagData length];
+			item.binary.data = (uint8_t *)[tagData bytes];
+			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_TRACK_NUMBER, ITUNES_METADATA_TYPE_BINARY, item, NULL, NULL);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_DISC] || [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TOTALDISCS]) {
+			lsmash_itunes_metadata_t item;
 			NSMutableData *tagData = [NSMutableData data];
 			[tagData increaseLengthBy:2];
 			short tmp = 0;
@@ -310,7 +315,10 @@ fail:
 				tmp = OSSwapHostToBigInt16(tmp);
 			}
 			[tagData appendBytes:&tmp length:2];
-			lsmash_set_itunes_metadata_custom(root,ITUNES_METADATA_ITEM_DISC_NUMBER,0,(void*)[tagData bytes],[tagData length],NULL,NULL);
+			item.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
+			item.binary.size = [tagData length];
+			item.binary.data = (uint8_t *)[tagData bytes];
+			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_DISC_NUMBER, ITUNES_METADATA_TYPE_BINARY, item, NULL, NULL);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_DATE]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_DATE];
@@ -433,16 +441,18 @@ fail:
 		}
 		
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COVER]) {
-			uint8_t type;
+			lsmash_itunes_metadata_t item;
 			NSData *imgData = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COVER];
 			if([imgData length] >= 8 && 0 == memcmp([imgData bytes], "\x89PNG\x0d\x0a\x1a\x0a", 8))
-				type = 0xe;
+				item.binary.subtype = ITUNES_METADATA_SUBTYPE_PNG;
 			else if([imgData length] >= 2 && 0 == memcmp([imgData bytes], "BM", 2))
-				type = 0x1b;
+				item.binary.subtype = ITUNES_METADATA_SUBTYPE_BMP;
 			else if([imgData length] >= 3 && 0 == memcmp([imgData bytes], "GIF", 3))
-				type = 0xc;
-			else type = 0xd;
-			lsmash_set_itunes_metadata_custom(root,ITUNES_METADATA_ITEM_COVER_ART,type,(void*)[imgData bytes],[imgData length],NULL,NULL);
+				item.binary.subtype = ITUNES_METADATA_SUBTYPE_GIF;
+			else item.binary.subtype = ITUNES_METADATA_SUBTYPE_JPEG;
+			item.binary.size = [imgData length];
+			item.binary.data = (uint8_t *)[imgData bytes];
+			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_COVER_ART, ITUNES_METADATA_TYPE_BINARY, item, NULL, NULL);
 		}
 		{
 			LIB_INFO *info = malloc(sizeof(LIB_INFO)*FDK_MODULE_LAST);
@@ -565,6 +575,7 @@ fail:
 								   "iTunSMPB");
 	}
 	{
+		lsmash_itunes_metadata_t item;
 		double sec = (double)totalFrames/(double)format.samplerate;
 		NSMutableData *tagData = [NSMutableData data];
 		int tmp;
@@ -589,10 +600,11 @@ fail:
 		free(info);
 		[tagData appendBytes:"cdcv" length:4];
 		[tagData appendBytes:&tmp length:4];
-		lsmash_set_itunes_metadata_custom(root,ITUNES_METADATA_ITEM_CUSTOM,0,(void*)[tagData bytes],[tagData length],"com.apple.iTunes","Encoding Params");
+		item.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
+		item.binary.size = [tagData length];
+		item.binary.data = (uint8_t *)[tagData bytes];
+		lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_BINARY, item, "com.apple.iTunes", "Encoding Params");
 	}
-	
-	//lsmash_set_free(root,(uint8_t*)[[NSMutableData dataWithCapacity:4096] bytes],4096);
 	
 	lsmash_adhoc_remux_t moov_to_front;
 	moov_to_front.func        = NULL;

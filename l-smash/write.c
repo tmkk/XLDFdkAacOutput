@@ -1359,12 +1359,12 @@ int isom_write_meta( lsmash_bs_t *bs, isom_meta_t *meta )
      || isom_write_dinf( bs, meta->dinf, meta->type )
      || isom_write_ilst( bs, meta->ilst ) )
         return -1;
-	if( meta->free) {
-		isom_bs_put_box_common( bs, meta->free );
-		if( meta->free->data && meta->free->length )
-			lsmash_bs_put_bytes( bs, meta->free->length, meta->free->data );
-		lsmash_bs_write_data( bs );
-	}
+    if( meta->free) {
+       isom_bs_put_box_common( bs, meta->free );
+        if( meta->free->data && meta->free->length )
+            lsmash_bs_put_bytes( bs, meta->free->length, meta->free->data );
+        lsmash_bs_write_data( bs );
+    }
     return 0;
 }
 

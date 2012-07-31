@@ -44,8 +44,8 @@ FDK:
 
 L-SMASH:
   - Added some new ITUNES_METADATA_ITEM_* constants
-  - Added lsmash_set_itunes_metadata_custom function which allows to add iTunes metadata with arbitrary data types
   - 'free' atom is inserted into 'meta' atom for padding
+  see l-smash.diff for details.
 
 
 CREDITS

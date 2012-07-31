@@ -80,7 +80,7 @@ static int isom_set_itunes_metadata_string( lsmash_root_t *root,
     isom_data_t *data = isom_add_metadata( root, item, meaning, name );
     if( !data )
         return -1;
-    data->type_code = 1;
+    data->type_code = ITUNES_METADATA_SUBTYPE_UTF8;
     data->value_length = value_length;      /* No null terminator */
     data->value = lsmash_memdup( value.string, data->value_length );
     if( !data->value )
@@ -128,7 +128,7 @@ static int isom_set_itunes_metadata_integer( lsmash_root_t *root,
     isom_data_t *data = isom_add_metadata( root, item, meaning, name );
     if( !data )
         return -1;
-    data->type_code = 21;
+    data->type_code = ITUNES_METADATA_SUBTYPE_INTEGER;
     data->value_length = metadata_code_type_table[i].length;
     uint8_t temp[8];
     for( i = 0; i < data->value_length; i++ )
@@ -153,10 +153,72 @@ static int isom_set_itunes_metadata_boolean( lsmash_root_t *root,
     isom_data_t *data = isom_add_metadata( root, item, meaning, name );
     if( !data )
         return -1;
-    data->type_code = 21;
+    data->type_code = ITUNES_METADATA_SUBTYPE_INTEGER;
     data->value_length = 1;
     uint8_t temp = (uint8_t)value.boolean;
     data->value = lsmash_memdup( &temp, 1 );
+    if( !data->value )
+    {
+        isom_ilst_t *ilst = root->moov->udta->meta->ilst;
+        lsmash_remove_entry_direct( ilst->item_list, ilst->item_list->tail, isom_remove_metaitem );
+        return -1;
+    }
+    return 0;
+}
+
+static int isom_set_itunes_metadata_binary( lsmash_root_t *root,
+                                            lsmash_itunes_metadata_item item,
+                                            lsmash_itunes_metadata_t value, char *meaning, char *name )
+{
+    isom_data_t *data = isom_add_metadata( root, item, meaning, name );
+    if( !data )
+        return -1;
+    switch( item )
+    {
+        case ITUNES_METADATA_ITEM_COVER_ART :
+            if( value.binary.subtype != ITUNES_METADATA_SUBTYPE_JPEG
+             && value.binary.subtype != ITUNES_METADATA_SUBTYPE_PNG
+             && value.binary.subtype != ITUNES_METADATA_SUBTYPE_BMP
+             && value.binary.subtype != ITUNES_METADATA_SUBTYPE_GIF )
+                return -1;
+            break;
+        case ITUNES_METADATA_ITEM_DISC_NUMBER :
+        case ITUNES_METADATA_ITEM_TRACK_NUMBER :
+            value.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
+            break;
+        default :
+            break;
+    }
+    switch( value.binary.subtype )
+    {
+        case ITUNES_METADATA_SUBTYPE_UUID :
+            if( value.binary.size != 16 )
+                return -1;
+            break;
+        case ITUNES_METADATA_SUBTYPE_DURATION :
+            if( value.binary.size != 4 )
+                return -1;
+            break;
+        case ITUNES_METADATA_SUBTYPE_TIME :
+            if( value.binary.size != 4 && value.binary.size != 8 )
+                return -1;
+            break;
+        case ITUNES_METADATA_SUBTYPE_INTEGER :
+            if( value.binary.size != 1 && value.binary.size != 2
+             && value.binary.size != 3 && value.binary.size != 4
+             && value.binary.size != 8 )
+                return -1;
+            break;
+        case ITUNES_METADATA_SUBTYPE_RIAAPA :
+            if( value.binary.size != 1 )
+                return -1;
+            break;
+        default :
+            break;
+    }
+    data->type_code = value.binary.subtype;
+    data->value_length = value.binary.size;
+    data->value = lsmash_memdup( value.binary.data, value.binary.size );
     if( !data->value )
     {
         isom_ilst_t *ilst = root->moov->udta->meta->ilst;
@@ -200,10 +262,10 @@ int lsmash_set_itunes_metadata( lsmash_root_t *root,
             { ITUNES_METADATA_ITEM_TV_NETWORK,                 isom_set_itunes_metadata_string },
             { ITUNES_METADATA_ITEM_TV_SHOW_NAME,               isom_set_itunes_metadata_string },
             { ITUNES_METADATA_ITEM_ITUNES_PURCHASE_ACCOUNT_ID, isom_set_itunes_metadata_string },
-			{ ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT,          isom_set_itunes_metadata_string },
-			{ ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT,         isom_set_itunes_metadata_string },
-			{ ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT,          isom_set_itunes_metadata_string },
-			{ ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT,    isom_set_itunes_metadata_string },
+            { ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT,          isom_set_itunes_metadata_string },
+            { ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT,         isom_set_itunes_metadata_string },
+            { ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT,          isom_set_itunes_metadata_string },
+            { ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT,    isom_set_itunes_metadata_string },
 			{ ITUNES_METADATA_ITEM_ITUNES_COMPOSER_SORT,       isom_set_itunes_metadata_string },
             { ITUNES_METADATA_ITEM_EPISODE_GLOBAL_ID,          isom_set_itunes_metadata_integer },
             { ITUNES_METADATA_ITEM_PREDEFINED_GENRE,           isom_set_itunes_metadata_integer },
@@ -223,6 +285,9 @@ int lsmash_set_itunes_metadata( lsmash_root_t *root,
             { ITUNES_METADATA_ITEM_HIGH_DEFINITION_VIDEO,      isom_set_itunes_metadata_boolean },
             { ITUNES_METADATA_ITEM_PODCAST,                    isom_set_itunes_metadata_boolean },
             { ITUNES_METADATA_ITEM_GAPLESS_PLAYBACK,           isom_set_itunes_metadata_boolean },
+            { ITUNES_METADATA_ITEM_COVER_ART,                  isom_set_itunes_metadata_binary },
+            { ITUNES_METADATA_ITEM_DISC_NUMBER,                isom_set_itunes_metadata_binary },
+            { ITUNES_METADATA_ITEM_TRACK_NUMBER,               isom_set_itunes_metadata_binary },
             { 0,                                               NULL }
         };
     for( int i = 0; itunes_metadata_function_mapping[i].func_set_itunes_metadata; i++ )
@@ -237,29 +302,12 @@ int lsmash_set_itunes_metadata( lsmash_root_t *root,
                 return isom_set_itunes_metadata_integer( root, item, value, meaning, name );
             case ITUNES_METADATA_TYPE_BOOLEAN :
                 return isom_set_itunes_metadata_boolean( root, item, value, meaning, name );
+            case ITUNES_METADATA_TYPE_BINARY :
+                return isom_set_itunes_metadata_binary( root, item, value, meaning, name );
             default :
                 break;
         }
     return -1;
-}
-
-int lsmash_set_itunes_metadata_custom( lsmash_root_t *root,
-							   lsmash_itunes_metadata_item item, uint8_t type,
-							   void *contents, uint32_t length, char *meaning, char *name )
-{
-	isom_data_t *data = isom_add_metadata( root, item, meaning, name );
-    if( !data )
-        return -1;
-    data->type_code = type;
-    data->value_length = length;
-    data->value = lsmash_memdup( contents, length );
-    if( !data->value )
-    {
-        isom_ilst_t *ilst = root->moov->udta->meta->ilst;
-        lsmash_remove_entry_direct( ilst->item_list, ilst->item_list->tail, isom_remove_metaitem );
-        return -1;
-    }
-    return 0;
 }
 
 #ifdef LSMASH_DEMUXER_ENABLED

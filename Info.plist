@@ -24,5 +24,7 @@
 	<string>1</string>
 	<key>NSPrincipalClass</key>
 	<string>XLDFdkAacOutput</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© tmkk, 2006-2012</string>
 </dict>
 </plist>

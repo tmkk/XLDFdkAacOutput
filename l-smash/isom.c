@@ -2494,16 +2494,16 @@ int isom_add_meta( isom_box_t *parent )
             return -1;
         }
         udta->meta = meta;
-		isom_create_box( skip, parent, ISOM_BOX_TYPE_FREE );
-		if( meta->free )
+        isom_create_box( skip, parent, ISOM_BOX_TYPE_FREE );
+        if( meta->free )
         {
             free( skip );
             return -1;
         }
-		meta->free = skip;
-		skip->data = calloc(1, 4096);
-		skip->length = 4096;
-		skip->size = 8 + skip->length;
+        meta->free = skip;
+        skip->data = calloc(1, 4096);
+        skip->length = 4096;
+        skip->size = 8 + skip->length;
     }
     return 0;
 }
@@ -3487,11 +3487,11 @@ static void isom_remove_meta( isom_meta_t *meta )
     isom_remove_dinf( meta->dinf );
     isom_remove_keys( meta->keys );
     isom_remove_ilst( meta->ilst );
-	if( meta->free) {
-		free( meta->free->data );
-		free( meta->free );
-		meta->free = NULL;
-	}
+    if( meta->free) {
+        free( meta->free->data );
+        free( meta->free );
+        meta->free = NULL;
+    }
     if( meta->parent )
     {
         if( !meta->parent->type )
@@ -5377,7 +5377,7 @@ static uint64_t isom_update_meta_size( isom_meta_t *meta )
         + isom_update_hdlr_size( meta->hdlr )
         + isom_update_dinf_size( meta->dinf )
         + isom_update_ilst_size( meta->ilst );
-	if( meta->free ) meta->size += meta->free->size;
+    if( meta->free ) meta->size += meta->free->size;
     CHECK_LARGESIZE( meta->size );
     return meta->size;
 }
