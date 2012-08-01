@@ -537,21 +537,21 @@ static int isom_add_visual_extensions( isom_visual_entry_t *visual, lsmash_video
         if( primaries >= QT_COLOR_PARAMETER_END )
             return -1;
         else if( primaries > UINT16_MAX )
-            colr->primaries_index = isom_color_parameter_tbl[primaries - UINT16_MAX_PLUS_ONE].primaries;
+            colr->primaries_index = isom_color_parameter_tbl[primaries - QT_COLOR_PARAMETER_START].primaries;
         else
             colr->primaries_index = (primaries == 1 || primaries == 5 || primaries == 6) ? primaries : 2;
         /* transfer */
         if( transfer >= QT_COLOR_PARAMETER_END )
             return -1;
         else if( transfer > UINT16_MAX )
-            colr->transfer_function_index = isom_color_parameter_tbl[transfer - UINT16_MAX_PLUS_ONE].transfer;
+            colr->transfer_function_index = isom_color_parameter_tbl[transfer - QT_COLOR_PARAMETER_START].transfer;
         else
             colr->transfer_function_index = (transfer == 1 || transfer == 7) ? transfer : 2;
         /* matrix */
         if( matrix >= QT_COLOR_PARAMETER_END )
             return -1;
         else if( matrix > UINT16_MAX )
-            colr->matrix_index = isom_color_parameter_tbl[matrix - UINT16_MAX_PLUS_ONE].matrix;
+            colr->matrix_index = isom_color_parameter_tbl[matrix - QT_COLOR_PARAMETER_START].matrix;
         else
             colr->matrix_index = (matrix == 1 || matrix == 6 || matrix == 7) ? matrix : 2;
     }

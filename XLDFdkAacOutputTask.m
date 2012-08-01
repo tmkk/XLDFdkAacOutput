@@ -253,32 +253,62 @@ fail:
 	outDesc->bufElSizes[0] = 1;
 	
 	if(addTag) {
+		lsmash_itunes_metadata_t metadata;
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TITLE]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TITLE];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_TITLE, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_TITLE;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ARTIST]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ARTIST];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ARTIST, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ARTIST;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUM]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUM];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ALBUM_NAME, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ALBUM_NAME;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUMARTIST]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUMARTIST];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ALBUM_ARTIST, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ALBUM_ARTIST;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GENRE]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GENRE];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_USER_GENRE, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_USER_GENRE;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMPOSER]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMPOSER];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_COMPOSER, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_COMPOSER;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TRACK] || [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TOTALTRACKS]) {
-			lsmash_itunes_metadata_t item;
 			NSMutableData *tagData = [NSMutableData data];
 			[tagData increaseLengthBy:2];
 			short tmp = 0;
@@ -294,13 +324,16 @@ fail:
 			}
 			[tagData appendBytes:&tmp length:2];
 			[tagData increaseLengthBy:2];
-			item.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
-			item.binary.size = [tagData length];
-			item.binary.data = (uint8_t *)[tagData bytes];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_TRACK_NUMBER, ITUNES_METADATA_TYPE_BINARY, item, NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_TRACK_NUMBER;
+			metadata.type = ITUNES_METADATA_TYPE_BINARY;
+			metadata.value.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
+			metadata.value.binary.size = [tagData length];
+			metadata.value.binary.data = (uint8_t *)[tagData bytes];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_DISC] || [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TOTALDISCS]) {
-			lsmash_itunes_metadata_t item;
 			NSMutableData *tagData = [NSMutableData data];
 			[tagData increaseLengthBy:2];
 			short tmp = 0;
@@ -315,147 +348,288 @@ fail:
 				tmp = OSSwapHostToBigInt16(tmp);
 			}
 			[tagData appendBytes:&tmp length:2];
-			item.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
-			item.binary.size = [tagData length];
-			item.binary.data = (uint8_t *)[tagData bytes];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_DISC_NUMBER, ITUNES_METADATA_TYPE_BINARY, item, NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_DISC_NUMBER;
+			metadata.type = ITUNES_METADATA_TYPE_BINARY;
+			metadata.value.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
+			metadata.value.binary.size = [tagData length];
+			metadata.value.binary.data = (uint8_t *)[tagData bytes];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_DATE]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_DATE];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_RELEASE_DATE, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_RELEASE_DATE;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		else if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_YEAR]) {
 			NSString *str = [[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_YEAR] stringValue];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_RELEASE_DATE, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_RELEASE_DATE;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMMENT]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMMENT];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_USER_COMMENT, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_USER_COMMENT;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_LYRICS]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_LYRICS];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_LYRICS, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_LYRICS;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GROUP]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GROUP];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_0XA9_GROUPING, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_0XA9_GROUPING;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TITLESORT]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TITLESORT];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ITUNES_SORT_NAME;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ARTISTSORT]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ARTISTSORT];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ITUNES_SORT_ARTIST;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUMSORT]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUMSORT];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ITUNES_SORT_ALBUM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUMARTISTSORT]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_ALBUMARTISTSORT];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ITUNES_SORT_ALBUM_ARTIST;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMPOSERSORT]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMPOSERSORT];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ITUNES_COMPOSER_SORT, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ITUNES_SORT_COMPOSER;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMPILATION]) {
 			if([[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COMPILATION] boolValue]) {
-				lsmash_itunes_metadata_t item;
-				item.boolean = LSMASH_BOOLEAN_TRUE;
-				lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_DISC_COMPILATION, ITUNES_METADATA_TYPE_BOOLEAN, item, NULL, NULL);
+				metadata.item = ITUNES_METADATA_ITEM_DISC_COMPILATION;
+				metadata.type = ITUNES_METADATA_TYPE_BOOLEAN;
+				metadata.value.boolean = LSMASH_BOOLEAN_TRUE;
+				metadata.meaning = NULL;
+				metadata.name = NULL;
+				lsmash_set_itunes_metadata(root, metadata);
 			}
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GRACENOTE]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GRACENOTE];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "iTunes_CDDB_IDs");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "iTunes_CDDB_IDs";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GRACENOTE2]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GRACENOTE2];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "iTunes_CDDB_1");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "iTunes_CDDB_1";
+			lsmash_set_itunes_metadata(root, metadata);
 			if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TRACK]) {
 				str = [NSString stringWithFormat:@"%d",[[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_TRACK] intValue]];
-				lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "iTunes_CDDB_TrackNumber");
+				metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+				metadata.type = ITUNES_METADATA_TYPE_STRING;
+				metadata.value.string = (char*)[str UTF8String];
+				metadata.meaning = "com.apple.iTunes";
+				metadata.name = "iTunes_CDDB_TrackNumber";
+				lsmash_set_itunes_metadata(root, metadata);
 			}
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_BPM]) {
-			lsmash_itunes_metadata_t item;
-			item.integer = [[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_BPM] shortValue];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_BEATS_PER_MINUTE, ITUNES_METADATA_TYPE_INTEGER, item, NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_BEATS_PER_MINUTE;
+			metadata.type = ITUNES_METADATA_TYPE_INTEGER;
+			metadata.value.integer = [[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_BPM] shortValue];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COPYRIGHT]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COPYRIGHT];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_COPYRIGHT, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_COPYRIGHT;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GAPLESSALBUM]) {
 			if([[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GAPLESSALBUM] boolValue]) {
-				lsmash_itunes_metadata_t item;
-				item.boolean = LSMASH_BOOLEAN_TRUE;
-				lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_GAPLESS_PLAYBACK, ITUNES_METADATA_TYPE_BOOLEAN, item, NULL, NULL);
+				metadata.item = ITUNES_METADATA_ITEM_GAPLESS_PLAYBACK;
+				metadata.type = ITUNES_METADATA_TYPE_BOOLEAN;
+				metadata.value.boolean = LSMASH_BOOLEAN_TRUE;
+				metadata.meaning = NULL;
+				metadata.name = NULL;
+				lsmash_set_itunes_metadata(root, metadata);
 			}
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_TRACKID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_TRACKID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Track Id");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Track Id";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Album Id");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Album Id";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ARTISTID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ARTISTID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Artist Id");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Artist Id";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMARTISTID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMARTISTID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Album Artist Id");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Album Artist Id";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_DISCID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_DISCID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Disc Id");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Disc Id";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_PUID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_PUID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicIP PUID");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicIP PUID";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMSTATUS]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMSTATUS];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Album Status");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Album Status";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMTYPE]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_ALBUMTYPE];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Album Type");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Album Type";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_RELEASECOUNTRY]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_RELEASECOUNTRY];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Album Release Country");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Album Release Country";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_RELEASEGROUPID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_RELEASEGROUPID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Release Group Id");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Release Group Id";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_WORKID]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MB_WORKID];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], "com.apple.iTunes", "MusicBrainz Work Id");
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MusicBrainz Work Id";
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COVER]) {
-			lsmash_itunes_metadata_t item;
 			NSData *imgData = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_COVER];
 			if([imgData length] >= 8 && 0 == memcmp([imgData bytes], "\x89PNG\x0d\x0a\x1a\x0a", 8))
-				item.binary.subtype = ITUNES_METADATA_SUBTYPE_PNG;
+				metadata.value.binary.subtype = ITUNES_METADATA_SUBTYPE_PNG;
 			else if([imgData length] >= 2 && 0 == memcmp([imgData bytes], "BM", 2))
-				item.binary.subtype = ITUNES_METADATA_SUBTYPE_BMP;
+				metadata.value.binary.subtype = ITUNES_METADATA_SUBTYPE_BMP;
 			else if([imgData length] >= 3 && 0 == memcmp([imgData bytes], "GIF", 3))
-				item.binary.subtype = ITUNES_METADATA_SUBTYPE_GIF;
-			else item.binary.subtype = ITUNES_METADATA_SUBTYPE_JPEG;
-			item.binary.size = [imgData length];
-			item.binary.data = (uint8_t *)[imgData bytes];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_COVER_ART, ITUNES_METADATA_TYPE_BINARY, item, NULL, NULL);
+				metadata.value.binary.subtype = ITUNES_METADATA_SUBTYPE_GIF;
+			else metadata.value.binary.subtype = ITUNES_METADATA_SUBTYPE_JPEG;
+			metadata.item = ITUNES_METADATA_ITEM_COVER_ART;
+			metadata.type = ITUNES_METADATA_TYPE_BINARY;
+			metadata.value.binary.size = [imgData length];
+			metadata.value.binary.data = (uint8_t *)[imgData bytes];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 		}
 		{
-			LIB_INFO *info = malloc(sizeof(LIB_INFO)*FDK_MODULE_LAST);
+			LIB_INFO *info = calloc(FDK_MODULE_LAST, sizeof(LIB_INFO));
 			aacEncGetLibInfo(info);
 			int i;
 			for(i=0;i<FDK_MODULE_LAST;i++) {
@@ -469,7 +643,12 @@ fail:
 				params = [NSString stringWithFormat:@"%@%@, CBR %d kbps",sbrEnabled?@", HE-AAC":@"",psEnabled?@" v2":@"",[[configurations objectForKey:@"Bitrate"] unsignedIntValue]/1000];
 			}
 			NSString *str = [NSString stringWithFormat:@"X Lossless Decoder %@, FDK AAC Encoder %s%@",[[NSBundle mainBundle] objectForInfoDictionaryKey: @"CFBundleShortVersionString"],info[i].versionStr,params];
-			lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_ENCODING_TOOL, ITUNES_METADATA_TYPE_STRING, (lsmash_itunes_metadata_t)(char*)[str UTF8String], NULL, NULL);
+			metadata.item = ITUNES_METADATA_ITEM_ENCODING_TOOL;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = NULL;
+			metadata.name = NULL;
+			lsmash_set_itunes_metadata(root, metadata);
 			free(info);
 		}
 	}
@@ -552,6 +731,7 @@ fail:
 	lsmash_flush_pooled_samples(root,tid,1024);
 	
 	{
+		lsmash_itunes_metadata_t metadata;
 		AACENC_InfoStruct info;
 		aacEncInfo(encoder,&info);
 		char iTunSMPB[256];
@@ -569,13 +749,15 @@ fail:
 		}
 		uint32_t padding = (uint32_t)ceil((duration + delay)/1024.0)*1024 - (duration + delay);
 		sprintf(iTunSMPB," 00000000 %08X %08X %016llX 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",delay,padding,duration);
-		lsmash_set_itunes_metadata(root,ITUNES_METADATA_ITEM_CUSTOM,ITUNES_METADATA_TYPE_STRING,
-								   (lsmash_itunes_metadata_t)iTunSMPB,
-								   "com.apple.iTunes",
-								   "iTunSMPB");
+		metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+		metadata.type = ITUNES_METADATA_TYPE_STRING;
+		metadata.value.string = iTunSMPB;
+		metadata.meaning = "com.apple.iTunes";
+		metadata.name = "iTunSMPB";
+		lsmash_set_itunes_metadata(root, metadata);
 	}
 	{
-		lsmash_itunes_metadata_t item;
+		lsmash_itunes_metadata_t metadata;
 		double sec = (double)totalFrames/(double)format.samplerate;
 		NSMutableData *tagData = [NSMutableData data];
 		int tmp;
@@ -590,20 +772,24 @@ fail:
 		tmp = OSSwapHostToBigInt32((int)round(encoded/sec*8));
 		[tagData appendBytes:"brat" length:4];
 		[tagData appendBytes:&tmp length:4];
-		LIB_INFO *info = malloc(sizeof(LIB_INFO)*FDK_MODULE_LAST);
+		LIB_INFO *info = calloc(FDK_MODULE_LAST, sizeof(LIB_INFO));
 		aacEncGetLibInfo(info);
 		int i;
 		for(i=0;i<FDK_MODULE_LAST;i++) {
 			if(info[i].module_id == FDK_AACENC) break;
 		}
 		tmp = OSSwapHostToBigInt32(info[i].version);
-		free(info);
 		[tagData appendBytes:"cdcv" length:4];
 		[tagData appendBytes:&tmp length:4];
-		item.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
-		item.binary.size = [tagData length];
-		item.binary.data = (uint8_t *)[tagData bytes];
-		lsmash_set_itunes_metadata(root, ITUNES_METADATA_ITEM_CUSTOM, ITUNES_METADATA_TYPE_BINARY, item, "com.apple.iTunes", "Encoding Params");
+		metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+		metadata.type = ITUNES_METADATA_TYPE_BINARY;
+		metadata.value.binary.subtype = ITUNES_METADATA_SUBTYPE_IMPLICIT;
+		metadata.value.binary.size = [tagData length];
+		metadata.value.binary.data = (uint8_t *)[tagData bytes];
+		metadata.meaning = "com.apple.iTunes";
+		metadata.name = "Encoding Params";
+		lsmash_set_itunes_metadata(root, metadata);
+		free(info);
 	}
 	
 	lsmash_adhoc_remux_t moov_to_front;

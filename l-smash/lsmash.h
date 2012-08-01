@@ -407,8 +407,8 @@ typedef enum
 
 typedef enum
 {
-#define UINT16_MAX_PLUS_ONE 0x10000
-    QT_COLOR_PARAMETER_NOT_SPECIFIED = UINT16_MAX_PLUS_ONE,
+    QT_COLOR_PARAMETER_START = 1 << 16, /* User must not use this. */
+    QT_COLOR_PARAMETER_NOT_SPECIFIED = QT_COLOR_PARAMETER_START,
     QT_COLOR_PARAMETER_ITU_R_BT470_M,
     QT_COLOR_PARAMETER_ITU_R_BT470_BG,
     QT_COLOR_PARAMETER_ITU_R_BT709,
@@ -417,7 +417,7 @@ typedef enum
     QT_COLOR_PARAMETER_SMPTE_274M,
     QT_COLOR_PARAMETER_SMPTE_293M,
     QT_COLOR_PARAMETER_SMPTE_296M,
-    QT_COLOR_PARAMETER_END,
+    QT_COLOR_PARAMETER_END,             /* User must not use this. */
 } lsmash_color_parameter;
 
 typedef enum
@@ -971,11 +971,12 @@ typedef enum
     ITUNES_METADATA_ITEM_TV_NETWORK                 = LSMASH_4CC( 't', 'v', 'n', 'n' ),     /* TV Network Name */
     ITUNES_METADATA_ITEM_TV_SHOW_NAME               = LSMASH_4CC( 't', 'v', 's', 'h' ),     /* TV Show Name */
     ITUNES_METADATA_ITEM_ITUNES_PURCHASE_ACCOUNT_ID = LSMASH_4CC( 'a', 'p', 'I', 'D' ),     /* iTunes Account Used for Purchase */
-    ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT          = LSMASH_4CC( 's', 'o', 'n', 'm' ),
-    ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT         = LSMASH_4CC( 's', 'o', 'a', 'r' ),
-    ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT          = LSMASH_4CC( 's', 'o', 'a', 'l' ),
-    ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT    = LSMASH_4CC( 's', 'o', 'a', 'a' ),
-    ITUNES_METADATA_ITEM_ITUNES_COMPOSER_SORT       = LSMASH_4CC( 's', 'o', 'c', 'o' ),
+    ITUNES_METADATA_ITEM_ITUNES_SORT_ALBUM          = LSMASH_4CC( 's', 'o', 'a', 'l' ),     /* Sort Album */
+    ITUNES_METADATA_ITEM_ITUNES_SORT_ARTIST         = LSMASH_4CC( 's', 'o', 'a', 'r' ),     /* Sort Artist */
+    ITUNES_METADATA_ITEM_ITUNES_SORT_ALBUM_ARTIST   = LSMASH_4CC( 's', 'o', 'a', 'a' ),     /* Sort Album Artist */
+    ITUNES_METADATA_ITEM_ITUNES_SORT_COMPOSER       = LSMASH_4CC( 's', 'o', 'c', 'o' ),     /* Sort Composer */
+    ITUNES_METADATA_ITEM_ITUNES_SORT_NAME           = LSMASH_4CC( 's', 'o', 'n', 'm' ),     /* Sort Name */
+    ITUNES_METADATA_ITEM_ITUNES_SORT_SHOW           = LSMASH_4CC( 's', 'o', 's', 'n' ),     /* Sort Show */
 
     /* Integer type
      * (X): X means length of bytes */
@@ -1256,9 +1257,12 @@ typedef struct
     uint32_t par_v;                             /* vertical factor of pixel aspect ratio */
     lsmash_scaling_method scaling_method;       /* If not set, video samples are scaled into the visual presentation region to fill it. */
     /* The folowing parameters are only available for QuickTime file formats. */
-    lsmash_color_parameter primaries;
-    lsmash_color_parameter transfer;
-    lsmash_color_parameter matrix;
+    lsmash_color_parameter primaries;           /* the chromaticity coordinates of the color primaries
+                                                 * The user who is a specialist can set an actual value to this directly without enum lsmash_color_parameter. */
+    lsmash_color_parameter transfer;            /* the opto-electronic transfer characteristic of the image color components
+                                                 * The user who is a specialist can set an actual value to this directly without enum lsmash_color_parameter. */
+    lsmash_color_parameter matrix;              /* the matrix coefficients associated with derivation of luma and chroma signals from the green, blue, and red primaries
+                                                 * The user who is a specialist can set an actual value to this directly without enum lsmash_color_parameter. */
     lsmash_field_orderings field_orderings;     /* field ordering for interlaced material */
     lsmash_pixel_format pixel_format;           /* the native pixel format */
     uint8_t significant_bits;                   /* the number of significant bits per component */
@@ -1356,15 +1360,27 @@ typedef enum
 
 typedef union
 {
-    char            *string;
-    uint64_t         integer;
-    lsmash_boolean_t boolean;
+    char            *string;    /* for ITUNES_METADATA_TYPE_STRING (UTF-8 string) */
+    uint64_t         integer;   /* for ITUNES_METADATA_TYPE_INTEGER */
+    lsmash_boolean_t boolean;   /* for ITUNES_METADATA_TYPE_BOOLEAN */
+    /* for ITUNES_METADATA_TYPE_BINARY */
     struct
     {
         lsmash_itunes_metadata_subtype subtype;
         uint32_t                       size;
         uint8_t                       *data;
     } binary;
+} lsmash_itunes_metadata_value_t;
+
+typedef struct
+{
+    /* When 'item' is specified as ITUNES_METADATA_ITEM_CUSTOM, 'type' and 'meaning' is mandatory while 'name' is optionally valid.
+     * Otherwise 'type', 'meaning' and 'name' are just ignored. 'value' is always mandatory. */
+    lsmash_itunes_metadata_item    item;
+    lsmash_itunes_metadata_type    type;
+    lsmash_itunes_metadata_value_t value;
+    char                          *meaning;
+    char                          *name;
 } lsmash_itunes_metadata_t;
 
 typedef struct lsmash_root_tag lsmash_root_t;
@@ -1436,11 +1452,9 @@ void lsmash_delete_tyrant_chapter( lsmash_root_t *root );
 /* track_ID == 0 means copyright declaration applies to the entire presentation, not an entire track. */
 int lsmash_set_copyright( lsmash_root_t *root, uint32_t track_ID, uint16_t ISO_language, char *notice );
 
-/* When 'item' is specified as ITUNES_METADATA_ITEM_CUSTOM, 'type' and 'meaning' is mandatory while 'name' is optionally valid.
- * Otherwise 'type', 'meaning' and 'name' are just ignored. */
-int lsmash_set_itunes_metadata( lsmash_root_t *root,
-                                lsmash_itunes_metadata_item item, lsmash_itunes_metadata_type type,
-                                lsmash_itunes_metadata_t value, char *meaning, char *name );
+int lsmash_set_itunes_metadata( lsmash_root_t *root, lsmash_itunes_metadata_t metadata );
+int lsmash_get_itunes_metadata( lsmash_root_t *root, uint32_t metadata_number, lsmash_itunes_metadata_t *metadata );
+uint32_t lsmash_count_itunes_metadata( lsmash_root_t *root );
 
 #ifdef LSMASH_DEMUXER_ENABLED
 int lsmash_print_movie( lsmash_root_t *root, const char *filename );

@@ -43,7 +43,6 @@ FDK:
   - Added inline assembly optimization for multiply-and-shift routine (ppc)
 
 L-SMASH:
-  - Added some new ITUNES_METADATA_ITEM_* constants
   - 'free' atom is inserted into 'meta' atom for padding
   see l-smash.diff for details.
 

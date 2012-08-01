@@ -11,22 +11,9 @@ index 56fd065..db1ce44 100644
  
  /* Window Location Box */
 diff --git isom.c isom.c
-index f2b0dcf..4ba59e1 100644
+index d80966d..e140644 100644
 --- isom.c
 +++ isom.c
-@@ -528,9 +528,9 @@ static int isom_add_visual_extensions( isom_visual_entry_t *visual, lsmash_video
-             return -1;
-         }
-         isom_colr_t *colr = visual->colr;
--        uint16_t primaries = summary->primaries;
--        uint16_t transfer  = summary->transfer;
--        uint16_t matrix    = summary->matrix;
-+        uint32_t primaries = summary->primaries;
-+        uint32_t transfer  = summary->transfer;
-+        uint32_t matrix    = summary->matrix;
-         /* Set 'nclc' to parameter type, we don't support 'prof'. */
-         colr->color_parameter_type = QT_COLOR_PARAMETER_TYPE_NCLC;
-         /* primaries */
 @@ -2494,6 +2494,16 @@ int isom_add_meta( isom_box_t *parent )
              return -1;
          }
@@ -64,24 +51,8 @@ index f2b0dcf..4ba59e1 100644
      CHECK_LARGESIZE( meta->size );
      return meta->size;
  }
-diff --git lsmash.h lsmash.h
-index b14aebb..ff59dd2 100644
---- lsmash.h
-+++ lsmash.h
-@@ -971,6 +971,11 @@ typedef enum
-     ITUNES_METADATA_ITEM_TV_NETWORK                 = LSMASH_4CC( 't', 'v', 'n', 'n' ),     /* TV Network Name */
-     ITUNES_METADATA_ITEM_TV_SHOW_NAME               = LSMASH_4CC( 't', 'v', 's', 'h' ),     /* TV Show Name */
-     ITUNES_METADATA_ITEM_ITUNES_PURCHASE_ACCOUNT_ID = LSMASH_4CC( 'a', 'p', 'I', 'D' ),     /* iTunes Account Used for Purchase */
-+    ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT          = LSMASH_4CC( 's', 'o', 'n', 'm' ),
-+    ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT         = LSMASH_4CC( 's', 'o', 'a', 'r' ),
-+    ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT          = LSMASH_4CC( 's', 'o', 'a', 'l' ),
-+    ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT    = LSMASH_4CC( 's', 'o', 'a', 'a' ),
-+    ITUNES_METADATA_ITEM_ITUNES_COMPOSER_SORT       = LSMASH_4CC( 's', 'o', 'c', 'o' ),
- 
-     /* Integer type
-      * (X): X means length of bytes */
 diff --git meta.c meta.c
-index 4ecb84a..9900ce8 100644
+index f74dd36..0c55165 100644
 --- meta.c
 +++ meta.c
 @@ -178,7 +178,8 @@ static int isom_set_itunes_metadata_binary( lsmash_root_t *root,
@@ -94,18 +65,6 @@ index 4ecb84a..9900ce8 100644
                  return -1;
              break;
          case ITUNES_METADATA_ITEM_DISC_NUMBER :
-@@ -261,6 +262,11 @@ int lsmash_set_itunes_metadata( lsmash_root_t *root,
-             { ITUNES_METADATA_ITEM_TV_NETWORK,                 isom_set_itunes_metadata_string },
-             { ITUNES_METADATA_ITEM_TV_SHOW_NAME,               isom_set_itunes_metadata_string },
-             { ITUNES_METADATA_ITEM_ITUNES_PURCHASE_ACCOUNT_ID, isom_set_itunes_metadata_string },
-+            { ITUNES_METADATA_ITEM_ITUNES_TITLE_SORT,          isom_set_itunes_metadata_string },
-+            { ITUNES_METADATA_ITEM_ITUNES_ARTIST_SORT,         isom_set_itunes_metadata_string },
-+            { ITUNES_METADATA_ITEM_ITUNES_ALBUM_SORT,          isom_set_itunes_metadata_string },
-+            { ITUNES_METADATA_ITEM_ITUNES_ALBUMARTIST_SORT,    isom_set_itunes_metadata_string },
-+			{ ITUNES_METADATA_ITEM_ITUNES_COMPOSER_SORT,       isom_set_itunes_metadata_string },
-             { ITUNES_METADATA_ITEM_EPISODE_GLOBAL_ID,          isom_set_itunes_metadata_integer },
-             { ITUNES_METADATA_ITEM_PREDEFINED_GENRE,           isom_set_itunes_metadata_integer },
-             { ITUNES_METADATA_ITEM_CONTENT_RATING,             isom_set_itunes_metadata_integer },
 diff --git write.c write.c
 index 2d78223..1adf964 100644
 --- write.c
