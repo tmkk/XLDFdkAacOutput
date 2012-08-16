@@ -39,7 +39,6 @@ SOURCE CODE MODIFICATIONS
 Some modifications are added to the original source code.
 
 FDK:
-  - Added inline assembly optimization for leading-zero counting routine (x86/ppc)
   - Added inline assembly optimization for multiply-and-shift routine (ppc)
   see fdk-aac.diff for details.
 

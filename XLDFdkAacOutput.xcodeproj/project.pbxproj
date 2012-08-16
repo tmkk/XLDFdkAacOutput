@@ -305,8 +305,6 @@
 		BF32EA1D15BA7A7F005120AB /* machine_type.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = machine_type.h; sourceTree = "<group>"; };
 		BF32EA1E15BA7A7F005120AB /* wav_file.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wav_file.h; sourceTree = "<group>"; };
 		BF32EAB615BA7DD5005120AB /* genericStds.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = genericStds.cpp; sourceTree = "<group>"; };
-		BF32EB3115BAD3D7005120AB /* clz_ppc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = clz_ppc.h; sourceTree = "<group>"; };
-		BF32EB3215BAD3E2005120AB /* clz_x86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = clz_x86.h; sourceTree = "<group>"; };
 		D2F7E65807B2D6F200F64583 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = /System/Library/Frameworks/CoreData.framework; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
@@ -590,7 +588,6 @@
 		BF32E9B315BA7A7F005120AB /* ppc */ = {
 			isa = PBXGroup;
 			children = (
-				BF32EB3115BAD3D7005120AB /* clz_ppc.h */,
 				BF32E9B415BA7A7F005120AB /* fixmul_ppc.h */,
 			);
 			path = ppc;
@@ -599,7 +596,6 @@
 		BF32E9B815BA7A7F005120AB /* x86 */ = {
 			isa = PBXGroup;
 			children = (
-				BF32EB3215BAD3E2005120AB /* clz_x86.h */,
 				BF32E9B915BA7A7F005120AB /* abs_x86.h */,
 				BF32E9BA15BA7A7F005120AB /* fixmul_x86.h */,
 			);
