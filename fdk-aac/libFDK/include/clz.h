@@ -100,12 +100,6 @@ amm-info@iis.fraunhofer.de
 #elif defined(__mips__)	/* cppp replaced: elif */
 #include "mips/clz_mips.h"
 
-#elif defined(__x86__)
-#include "x86/clz_x86.h"
-
-#elif defined(__powerpc__)
-#include "ppc/clz_ppc.h"
-
 #endif /* all cores */
 
 
@@ -120,6 +114,11 @@ amm-info@iis.fraunhofer.de
 inline INT fixnormz_S (SHORT a)
 {
   return fixnormz_D((INT)(a));
+}
+#elif defined(__GNUC__)
+inline INT fixnormz_S (SHORT a)
+{
+    return a ? __builtin_clz(a) : 16;
 }
 #else
 inline INT fixnormz_S (SHORT a)
@@ -137,17 +136,24 @@ inline INT fixnormz_S (SHORT a)
 #endif
 
 #if !defined(FUNCTION_fixnormz_D)
-inline INT fixnormz_D (ULONG x)
+#if defined(__GNUC__)
+inline INT fixnormz_D (LONG a)
 {
-	ULONG y;
-	INT n = 32;
-	y = x >> 16; if (y != 0){ n = n - 16 ; x = y; }
-	y = x >>  8; if (y != 0){ n = n -  8 ; x = y; }
-	y = x >>  4; if (y != 0){ n = n -  4 ; x = y; }
-	y = x >>  2; if (y != 0){ n = n -  2 ; x = y; }
-	y = x >>  1; if (y != 0){ return n - 2; }
-	return n - x;
+    return a ? __builtin_clz(a) : 32;
 }
+#else
+inline INT fixnormz_D (LONG a)
+{
+    INT leadingBits = 0;
+    a = ~a;
+    while(a & 0x80000000) {
+      leadingBits++;
+      a <<= 1;
+    }
+
+    return (leadingBits);
+}
+#endif
 #endif
 
 

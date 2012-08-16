@@ -95,12 +95,11 @@ amm-info@iis.fraunhofer.de
 inline INT fixnormz_D (LONG a)
 {
   INT result;
-  asm ( "movl $32, %0;"
-        "cmpl $0, %1;"
-        "jz   1f;"
-        "bsrl %1, %0;"
-        "negl %0;"
-        "addl $31, %0;"
+  asm ( "movl $32, %0;\n"
+        "cmpl $0, %1;\n"
+        "jz   1f;\n"
+        "bsrl %1, %0;\n"
+        "xorl $31, %0;\n"
         "1:"
              : "=&r"(result)
              : "r"(a));

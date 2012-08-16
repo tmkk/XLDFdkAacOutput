@@ -96,7 +96,7 @@ amm-info@iis.fraunhofer.de
 inline INT fixnormz_D (LONG a)
 {
   INT result ;
-  __asm__ ("cntlzw %0, %1" : "=r" (result)
+  __asm__ ("cntlzw %0, %1;\n" : "=r" (result)
                            : "r" (a)) ;
   return result ;
 }
