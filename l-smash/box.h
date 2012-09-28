@@ -37,12 +37,13 @@ typedef struct isom_box_tag isom_box_t;
  * If size is 0, then this box is the last one in the file.
  * usertype is for uuid. */
 #define ISOM_BASEBOX_COMMON \
-        lsmash_root_t *root;    /* pointer of root */ \
-        isom_box_t *parent;     /* pointer of the parent box of this box */ \
-        uint8_t  manager;       /* flags for L-SMASH */ \
-        uint64_t pos;           /* starting position of this box in the file */ \
-    uint64_t size;              /* the number of bytes in this box */ \
-    uint32_t type;              /* four characters codes that identify box type */ \
+        lsmash_root_t      *root;       /* pointer of root */ \
+        isom_box_t         *parent;     /* pointer of the parent box of this box */ \
+        uint32_t            manager;    /* flags for L-SMASH */ \
+        uint64_t            pos;        /* starting position of this box in the file */ \
+        lsmash_entry_list_t extensions; /* extension boxes */ \
+    uint64_t size;                      /* the number of bytes in this box */ \
+    uint32_t type;                      /* four characters codes that identify box type */ \
     uint8_t  *usertype
 
 #define ISOM_FULLBOX_COMMON \
@@ -61,12 +62,44 @@ typedef struct isom_box_tag isom_box_t;
 #define LSMASH_AUDIO_DESCRIPTION 0x10
 #define LSMASH_FULLBOX           0x20
 #define LSMASH_LAST_BOX          0x40
+#define LSMASH_INCOMPLETE_BOX    0x80
 
 
 struct isom_box_tag
 {
     ISOM_FULLBOX_COMMON;
 };
+
+/* Unknown Box
+ * This structure is for boxes we don't know or define yet.
+ * This box must be always appended as an extension box. */
+typedef struct
+{
+    ISOM_BASEBOX_COMMON;
+    uint32_t unknown_size;
+    uint8_t *unknown_field;
+} isom_unknown_box_t;
+
+/* Extension structure */
+typedef enum
+{
+    EXTENSION_FORMAT_BINARY = 0,
+    EXTENSION_FORMAT_BOX    = 1
+} isom_extension_format;
+
+typedef void (*isom_extension_destructor_t)( void *extension_data );
+
+typedef struct
+{
+    ISOM_BASEBOX_COMMON;
+    isom_extension_format       format;
+    isom_extension_destructor_t destruct;
+    union
+    {
+        uint8_t *binary;
+        void    *box;
+    } form;
+} isom_extension_box_t;
 
 /* File Type Box
  * This box identifies the specifications to which this file complies.
@@ -176,7 +209,8 @@ typedef struct
  * correspond to the value of the CTS the first sample has or more not to exceed the largest CTS in this track. */
 typedef struct
 {
-    /* version == 0: 64bits -> 32bits */
+    /* This entry is called Timeline Mapping Edit (TME) entry in UltraViolet Common File Format.
+     * version == 0: 64bits -> 32bits */
     uint64_t segment_duration;  /* the duration of this edit expressed in the movie timescale units */
     int64_t  media_time;        /* the starting composition time within the media of this edit segment
                                  * If this field is set to -1, it is an empty edit. */
@@ -453,21 +487,31 @@ typedef struct
     uint32_t vSpacing;      /* vertical spacing */
 } isom_pasp_t;
 
-/* Color Parameter Box
+/* ISOM: Colour Information Box / QTFF: Color Parameter Box
  * This box is used to map the numerical values of pixels in the file to a common representation of color
  * in which images can be correctly compared, combined, and displayed.
- * The box ('colr') supersedes the Gamma Level Box ('gama').
- * Writers of QTFF should never write both into an Image Description, and readers of QTFF should ignore 'gama' if 'colr' is present.
- * This box is defined in QuickTime file format.
- * Note: this box is a mandatory extension for all uncompressed Y'CbCr data formats. */
+ * If colour information is supplied in both this box, and also in the video bitstream,
+ * this box takes precedence, and over-rides the information in the bitstream.
+ * For QuickTime file format:
+ *   This box ('colr') supersedes the Gamma Level Box ('gama').
+ *   Writers of QTFF should never write both into an Image Description, and readers of QTFF should ignore 'gama' if 'colr' is present.
+ *   Note: this box is a mandatory extension for all uncompressed Y'CbCr data formats.
+ * For ISO Base Media file format:
+ *   Colour information may be supplied in one or more Colour Information Boxes placed in a VisualSampleEntry.
+ *   These should be placed in order in the sample entry starting with the most accurate (and potentially the most difficult to process), in progression to the least.
+ *   These are advisory and concern rendering and colour conversion, and there is no normative behaviour associated with them; a reader may choose to use the most suitable. */
 typedef struct
 {
     ISOM_BASEBOX_COMMON;
-    uint32_t color_parameter_type;          /* 'nclc' or 'prof' */
-    /* for 'nclc' */
+    uint32_t color_parameter_type;          /* QTFF: 'nclc' or 'prof'
+                                             * ISOM: 'nclx', 'rICC' or 'prof' */
+    /* for 'nclc' and 'nclx' */
     uint16_t primaries_index;               /* CIE 1931 xy chromaticity coordinates */
     uint16_t transfer_function_index;       /* nonlinear transfer function from RGB to ErEgEb */
     uint16_t matrix_index;                  /* matrix from ErEgEb to EyEcbEcr */
+    /* for 'nclx' */
+    unsigned full_range_flag : 1;
+    unsigned reserved        : 7;
 } isom_colr_t;
 
 /* Gamma Level Box
@@ -476,7 +520,8 @@ typedef struct
 typedef struct
 {
     ISOM_BASEBOX_COMMON;
-    uint32_t level;     /* A fixed-point 16.16 number indicating the gamma level at which the image was captured. */
+    uint32_t level;     /* A fixed-point 16.16 number indicating the gamma level at which the image was captured.
+                         * Zero value indicates platform's standard gamma. */
 } isom_gama_t;
 
 /* Field/Frame Information Box
@@ -528,7 +573,7 @@ typedef struct
 #define ISOM_SAMPLE_ENTRY \
     ISOM_BASEBOX_COMMON; \
     uint8_t reserved[6]; \
-    uint16_t data_reference_index;
+    uint16_t data_reference_index
 
 typedef struct
 {
@@ -539,10 +584,14 @@ typedef struct
 typedef struct
 {
     ISOM_SAMPLE_ENTRY;
-    isom_esds_t *esds;      /* ES Descriptor Box */
 } isom_mp4s_entry_t;
 
-/* ISOM: Visual Sample Entry / QTFF: Image Description */
+/* ISOM: Visual Sample Entry / QTFF: Image Description
+ * For maximum compatibility, the following extension boxes should follow, not precede,
+ * any extension boxes defined in or required by derived specifications.
+ *   Clean Aperture Box
+ *   Pixel Aspect Ratio Box
+ *   Colorspace Box */
 typedef struct
 {
     ISOM_SAMPLE_ENTRY;
@@ -571,27 +620,6 @@ typedef struct
                                  *       If this field is set to 0, the default color table should be used for the specified depth
                                  *       If the color table ID is set to 0, a color table is contained within the sample description itself.
                                  *       The color table immediately follows the color table ID field. */
-    /* AVC specific extensions */
-    isom_avcC_t *avcC;          /* AVCDecoderConfigurationRecord */
-    isom_btrt_t *btrt;          /* MPEG-4 Bit Rate Box @ optional */
-    /* MP4 specific extension */
-    isom_esds_t *esds;          /* ES Descriptor Box */
-    /* QuickTime specific extension */
-    isom_glbl_t *glbl;          /* Global Header Box */
-    isom_colr_t *colr;          /* Color Parameter Box @ optional */
-    isom_gama_t *gama;          /* Gamma Level Box @ optional */
-    isom_fiel_t *fiel;          /* Field/Frame Information Box @ optional */
-    isom_cspc_t *cspc;          /* Colorspace Box @ optional */
-    isom_sgbt_t *sgbt;          /* Significant Bits Box @ optional */
-    /* ISO Base Media extension */
-    isom_stsl_t *stsl;          /* Sample Scale Box @ optional */
-    /* common extensions
-     * For maximum compatibility, these boxes should follow, not precede, any boxes defined in or required by derived specifications. */
-    isom_clap_t *clap;          /* Clean Aperture Box @ optional */
-    isom_pasp_t *pasp;          /* Pixel Aspect Ratio Box @ optional */
-
-        uint32_t exdata_length;
-        void *exdata;
 } isom_visual_entry_t;
 
 /* Format Box
@@ -626,6 +654,7 @@ typedef struct
 } isom_terminator_t;
 
 /* Sound Information Decompression Parameters Box
+ * This box is defined in QuickTime file format.
  * This box provides the ability to store data specific to a given audio decompressor in the sound description.
  * The contents of this box are dependent on the audio decompressor. */
 typedef struct
@@ -634,14 +663,11 @@ typedef struct
     isom_frma_t       *frma;            /* Format Box */
     isom_enda_t       *enda;            /* Audio Endian Box */
     isom_mp4a_t       *mp4a;            /* MPEG-4 Audio Box */
-    isom_esds_t       *esds;            /* ES Descriptor Box */
     isom_terminator_t *terminator;      /* Terminator Box */
-
-        uint32_t exdata_length;
-        void *exdata;
 } isom_wave_t;
 
-/* Audio Channel Layout Box */
+/* Audio Channel Layout Box
+ * This box is defined in QuickTime file format or Apple Lossless Audio inside ISO Base Media. */
 typedef struct
 {
     uint32_t channelLabel;          /* the channelLabel that describes the channel */
@@ -708,13 +734,7 @@ typedef struct
     uint32_t formatSpecificFlags;
     uint32_t constBytesPerAudioPacket;          /* only set if constant */
     uint32_t constLPCMFramesPerAudioPacket;     /* only set if constant */
-    /* extensions */
-    isom_esds_t *esds;      /* ISOM: ES Descriptor Box / QTFF: null */
-    isom_wave_t *wave;      /* ISOM: null / QTFF: Sound Information Decompression Parameters Box */
-    isom_chan_t *chan;      /* ISOM: null / QTFF: Audio Channel Layout Box @ optional */
 
-        uint32_t exdata_length;
-        void *exdata;
         lsmash_audio_summary_t summary;
 } isom_audio_entry_t;
 
@@ -809,6 +829,7 @@ typedef struct
 typedef struct
 {
     ISOM_FULLBOX_COMMON;
+    uint32_t entry_count;   /* print only */
     lsmash_entry_list_t *list;
 } isom_stsd_t;
 /** **/
@@ -835,13 +856,13 @@ typedef struct
 /* Composition Time to Sample Box
  * This box provides the offset between decoding time and composition time.
  * CTS is an abbreviation of 'composition time stamp'.
- * This box is optional and must only be present if DTS and CTS differ for any samples.
- * ISOM: if version is set to 1, sample_offset is signed 32-bit integer.
- * QTFF: sample_offset is always signed 32-bit integer. */
+ * This box is optional and must only be present if DTS and CTS differ for any samples. */
 typedef struct
 {
     uint32_t sample_count;      /* number of consecutive samples that have the given sample_offset */
-    uint32_t sample_offset;     /* CTS[n] = DTS[n] + sample_offset[n]; */
+    uint32_t sample_offset;     /* CTS[n] = DTS[n] + sample_offset[n];
+                                 * ISOM: if version is set to 1, sample_offset is signed 32-bit integer.
+                                 * QTFF: sample_offset is always signed 32-bit integer. */
 } isom_ctts_entry_t;
 
 typedef struct
@@ -1348,7 +1369,7 @@ typedef struct
 
 typedef struct
 {
-    uint8_t has_samples;
+    uint8_t  has_samples;
     uint32_t traf_number;
     uint32_t last_duration;     /* the last sample duration in this track fragment */
     uint64_t largest_cts;       /* the largest CTS in this track fragments */
@@ -1356,12 +1377,12 @@ typedef struct
 
 typedef struct
 {
-    uint8_t all_sync;       /* if all samples are sync sample */
-    isom_chunk_t chunk;
-    isom_timestamp_t timestamp;
-    isom_grouping_t roll;
+    uint8_t           all_sync;     /* if all samples are sync sample */
+    isom_chunk_t      chunk;
+    isom_timestamp_t  timestamp;
+    isom_grouping_t   roll;
     isom_rap_group_t *rap;
-    isom_fragment_t *fragment;
+    isom_fragment_t  *fragment;
 } isom_cache_t;
 
 /** Movie Fragments Boxes **/
@@ -1466,6 +1487,22 @@ typedef struct
     isom_sample_flags_t default_sample_flags;       /* override default_sample_flags in Track Extends Box */
 } isom_tfhd_t;
 
+/* Track Fragment Base Media Decode Time Box
+ * This box provides the absolute decode time, measured on the media timeline, of the first sample in decode order in the track fragment.
+ * This can be useful, for example, when performing random access in a file;
+ * it is not necessary to sum the sample durations of all preceding samples in previous fragments to find this value
+ * (where the sample durations are the deltas in the Decoding Time to Sample Box and the sample_durations in the preceding track runs).
+ * This box, if present, shall be positioned after the Track Fragment Header Box and before the first Track Fragment Run box. */
+typedef struct
+{
+    ISOM_FULLBOX_COMMON;    /* version is either 0 or 1 */
+    /* version == 0: 64bits -> 32bits */
+    uint64_t baseMediaDecodeTime;   /* an integer equal to the sum of the decode durations of all earlier samples in the media, expressed in the media's timescale
+                                     * It does not include the samples added in the enclosing track fragment.
+                                     * NOTE: the decode timeline is a media timeline, established before any explicit or implied mapping of media time to presentation time,
+                                     *       for example by an edit list or similar structure. */
+} isom_tfdt_t;
+
 /* Track Fragment Run Box
  * Within the Track Fragment Box, there are zero or more Track Fragment Run Boxes.
  * If the duration-is-empty flag is set in the tf_flags, there are no track runs.
@@ -1489,7 +1526,9 @@ typedef struct
     uint32_t            sample_size;                        /* override default_sample_size */
     isom_sample_flags_t sample_flags;                       /* override default_sample_flags */
     /* */
-    uint32_t            sample_composition_time_offset;     /* composition time offset */
+    uint32_t            sample_composition_time_offset;     /* composition time offset
+                                                             *   If version == 0, unsigned 32-bit integer.
+                                                             *   Otherwise, signed 32-bit integer. */
 } isom_trun_optional_row_t;
 
 /* Track Fragment Box */
@@ -1497,6 +1536,7 @@ typedef struct
 {
     ISOM_BASEBOX_COMMON;
     isom_tfhd_t         *tfhd;          /* Track Fragment Header Box */
+    isom_tfdt_t         *tfdt;          /* Track Fragment Base Media Decode Time Box */
     lsmash_entry_list_t *trun_list;     /* Track Fragment Run Box List
                                          * If the duration-is-empty flag is set in the tf_flags, there are no track runs. */
     isom_sdtp_t         *sdtp;          /* Independent and Disposable Samples Box */
@@ -1513,8 +1553,8 @@ typedef struct
 } isom_moof_entry_t;
 
 /* Track Fragment Random Access Box
- * Each entry in this box contains the location and the presentation time of the random accessible sample.
- * Note that not every random accessible sample in the track needs to be listed in the table.
+ * Each entry in this box contains the location and the presentation time of the sync sample.
+ * Note that not every sync sample in the track needs to be listed in the table.
  * The absence of this box does not mean that all the samples are sync samples. */
 typedef struct
 {
@@ -1525,23 +1565,28 @@ typedef struct
     unsigned int length_size_of_trun_num   : 2;     /* the length in byte of the trun_number field minus one */
     unsigned int length_size_of_sample_num : 2;     /* the length in byte of the sample_number field minus one */
     uint32_t number_of_entry;                       /* the number of the entries for this track
-                                                     * Value zero indicates that every sample is a random access point and no table entry follows. */
+                                                     * Value zero indicates that every sample is a sync sample and no table entry follows. */
     lsmash_entry_list_t *list;                      /* entry_count corresponds to number_of_entry. */
 } isom_tfra_entry_t;
 
 typedef struct
 {
     /* version == 0: 64bits -> 32bits */
-    uint64_t time;              /* the presentation time of the random access sample in units defined in the Media Header Box of the associated track
-                                 * According to 14496-12:2008/FPDAM 3, presentation times are composition times. */
+    uint64_t time;              /* the presentation time of the sync sample in units defined in the Media Header Box of the associated track
+                                 * For segments based on movie sample tables or movie fragments, presentation times are in the movie timeline,
+                                 * that is they are composition times after the application of any edit list for the track.
+                                 * Note: the definition of segment is portion of an ISO base media file format file, consisting of either
+                                 *       (a) a movie box, with its associated media data (if any) and other associated boxes
+                                 *        or
+                                 *       (b) one or more movie fragment boxes, with their associated media data, and other associated boxes. */
     uint64_t moof_offset;       /* the offset of the Movie Fragment Box used in this entry
                                  * Offset is the byte-offset between the beginning of the file and the beginning of the Movie Fragment Box. */
     /* */
-    uint32_t traf_number;       /* the Track Fragment Box ('traf') number that contains the random accessible sample
+    uint32_t traf_number;       /* the Track Fragment Box ('traf') number that contains the sync sample
                                  * The number ranges from 1 in each Movie Fragment Box ('moof'). */
-    uint32_t trun_number;       /* the Track Fragment Run Box ('trun') number that contains the random accessible sample
+    uint32_t trun_number;       /* the Track Fragment Run Box ('trun') number that contains the sync sample
                                  * The number ranges from 1 in each Track Fragment Box ('traf'). */
-    uint32_t sample_number;     /* the sample number that contains the random accessible sample
+    uint32_t sample_number;     /* the sample number that contains the sync sample
                                  * The number ranges from 1 in each Track Fragment Run Box ('trun'). */
 } isom_tfra_location_time_entry_t;
 
@@ -1556,7 +1601,7 @@ typedef struct
 } isom_mfro_t;
 
 /* Movie Fragment Random Access Box
- * This box provides a table which may assist readers in finding random access points in a file using movie fragments,
+ * This box provides a table which may assist readers in finding sync samples in a file using movie fragments,
  * and is usually placed at or near the end of the file.
  * The last box within the Movie Fragment Random Access Box, which is called Movie Fragment Random Access Offset Box,
  * provides a copy of the length field from the Movie Fragment Random Access Box. */
@@ -1769,6 +1814,7 @@ enum isom_box_type
     ISOM_BOX_TYPE_SUBS  = LSMASH_4CC( 's', 'u', 'b', 's' ),
     ISOM_BOX_TYPE_SWTC  = LSMASH_4CC( 's', 'w', 't', 'c' ),
     ISOM_BOX_TYPE_TFHD  = LSMASH_4CC( 't', 'f', 'h', 'd' ),
+    ISOM_BOX_TYPE_TFDT  = LSMASH_4CC( 't', 'f', 'd', 't' ),
     ISOM_BOX_TYPE_TFRA  = LSMASH_4CC( 't', 'f', 'r', 'a' ),
     ISOM_BOX_TYPE_TIBR  = LSMASH_4CC( 't', 'i', 'b', 'r' ),
     ISOM_BOX_TYPE_TIRI  = LSMASH_4CC( 't', 'i', 'r', 'i' ),
@@ -1819,21 +1865,12 @@ enum isom_box_type
 
 enum qt_box_type
 {
-    QT_BOX_TYPE_ALAC    = LSMASH_4CC( 'a', 'l', 'a', 'c' ),
     QT_BOX_TYPE_ALLF    = LSMASH_4CC( 'A', 'l', 'l', 'F' ),
-    QT_BOX_TYPE_CHAN    = LSMASH_4CC( 'c', 'h', 'a', 'n' ),
     QT_BOX_TYPE_CLEF    = LSMASH_4CC( 'c', 'l', 'e', 'f' ),
     QT_BOX_TYPE_CLIP    = LSMASH_4CC( 'c', 'l', 'i', 'p' ),
-    QT_BOX_TYPE_COLR    = LSMASH_4CC( 'c', 'o', 'l', 'r' ),
     QT_BOX_TYPE_CRGN    = LSMASH_4CC( 'c', 'r', 'g', 'n' ),
-    QT_BOX_TYPE_CSPC    = LSMASH_4CC( 'c', 's', 'p', 'c' ),
     QT_BOX_TYPE_CTAB    = LSMASH_4CC( 'c', 't', 'a', 'b' ),
-    QT_BOX_TYPE_ENDA    = LSMASH_4CC( 'e', 'n', 'd', 'a' ),
     QT_BOX_TYPE_ENOF    = LSMASH_4CC( 'e', 'n', 'o', 'f' ),
-    QT_BOX_TYPE_FIEL    = LSMASH_4CC( 'f', 'i', 'e', 'l' ),
-    QT_BOX_TYPE_FRMA    = LSMASH_4CC( 'f', 'r', 'm', 'a' ),
-    QT_BOX_TYPE_GAMA    = LSMASH_4CC( 'g', 'a', 'm', 'a' ),
-    QT_BOX_TYPE_GLBL    = LSMASH_4CC( 'g', 'l', 'b', 'l' ),
     QT_BOX_TYPE_GMHD    = LSMASH_4CC( 'g', 'm', 'h', 'd' ),
     QT_BOX_TYPE_GMIN    = LSMASH_4CC( 'g', 'm', 'i', 'n' ),
     QT_BOX_TYPE_IMAP    = LSMASH_4CC( 'i', 'm', 'a', 'p' ),
@@ -1843,18 +1880,30 @@ enum qt_box_type
     QT_BOX_TYPE_LOOP    = LSMASH_4CC( 'L', 'O', 'O', 'P' ),
     QT_BOX_TYPE_MATT    = LSMASH_4CC( 'm', 'a', 't', 't' ),
     QT_BOX_TYPE_META    = LSMASH_4CC( 'm', 'e', 't', 'a' ),
-    QT_BOX_TYPE_MP4A    = LSMASH_4CC( 'm', 'p', '4', 'a' ),
     QT_BOX_TYPE_PNOT    = LSMASH_4CC( 'p', 'n', 'o', 't' ),
     QT_BOX_TYPE_PROF    = LSMASH_4CC( 'p', 'r', 'o', 'f' ),
     QT_BOX_TYPE_SELO    = LSMASH_4CC( 'S', 'e', 'l', 'O' ),
-    QT_BOX_TYPE_SGBT    = LSMASH_4CC( 's', 'g', 'b', 't' ),
     QT_BOX_TYPE_STPS    = LSMASH_4CC( 's', 't', 'p', 's' ),
     QT_BOX_TYPE_TAPT    = LSMASH_4CC( 't', 'a', 'p', 't' ),
     QT_BOX_TYPE_TEXT    = LSMASH_4CC( 't', 'e', 'x', 't' ),
-    QT_BOX_TYPE_WAVE    = LSMASH_4CC( 'w', 'a', 'v', 'e' ),
     QT_BOX_TYPE_WLOC    = LSMASH_4CC( 'W', 'L', 'O', 'C' ),
 
+    QT_BOX_TYPE_CHAN    = LSMASH_4CC( 'c', 'h', 'a', 'n' ),
+    QT_BOX_TYPE_COLR    = LSMASH_4CC( 'c', 'o', 'l', 'r' ),
+    QT_BOX_TYPE_CSPC    = LSMASH_4CC( 'c', 's', 'p', 'c' ),
+    QT_BOX_TYPE_ENDA    = LSMASH_4CC( 'e', 'n', 'd', 'a' ),
+    QT_BOX_TYPE_FIEL    = LSMASH_4CC( 'f', 'i', 'e', 'l' ),
+    QT_BOX_TYPE_FRMA    = LSMASH_4CC( 'f', 'r', 'm', 'a' ),
+    QT_BOX_TYPE_GAMA    = LSMASH_4CC( 'g', 'a', 'm', 'a' ),
+    QT_BOX_TYPE_SGBT    = LSMASH_4CC( 's', 'g', 'b', 't' ),
+    QT_BOX_TYPE_WAVE    = LSMASH_4CC( 'w', 'a', 'v', 'e' ),
     QT_BOX_TYPE_TERMINATOR  = 0x00000000,
+
+    /* Decoder Specific Info */
+    QT_BOX_TYPE_ALAC    = LSMASH_4CC( 'a', 'l', 'a', 'c' ),
+    QT_BOX_TYPE_ESDS    = LSMASH_4CC( 'e', 's', 'd', 's' ),
+    QT_BOX_TYPE_GLBL    = LSMASH_4CC( 'g', 'l', 'b', 'l' ),
+    QT_BOX_TYPE_MP4A    = LSMASH_4CC( 'm', 'p', '4', 'a' ),
 };
 
 /* Track reference types */
@@ -2019,77 +2068,14 @@ static const isom_language_t isom_languages[] =
 };
 
 /* Color parameters */
-typedef struct
+enum isom_color_patameter_type
 {
-    uint16_t primaries;
-    uint16_t transfer;
-    uint16_t matrix;
-} isom_color_parameter_t;
+    ISOM_COLOR_PARAMETER_TYPE_NCLX = LSMASH_4CC( 'n', 'c', 'l', 'x' ),      /* on-screen colours */
+    ISOM_COLOR_PARAMETER_TYPE_RICC = LSMASH_4CC( 'r', 'I', 'C', 'C' ),      /* restricted ICC profile */
+    ISOM_COLOR_PARAMETER_TYPE_PROF = LSMASH_4CC( 'p', 'r', 'o', 'f' ),      /* unrestricted ICC profile */
 
-static const isom_color_parameter_t isom_color_parameter_tbl[] =
-{
-    { 2, 2, 2 },        /* Not specified */
-    { 2, 2, 2 },        /* ITU-R BT.470 System M */
-    { 5, 2, 6 },        /* ITU-R BT.470 System B, G */
-    { 1, 1, 1 },        /* ITU-R BT.709 */
-    { 6, 1, 6 },        /* SMPTE 170M */
-    { 6, 7, 7 },        /* SMPTE 240M */
-    { 1, 1, 1 },        /* SMPTE 274M */
-    { 5, 1, 6 },        /* SMPTE 293M */
-    { 1, 1, 1 },        /* SMPTE 296M */
-};
-
-enum qt_color_patameter_type
-{
-    QT_COLOR_PARAMETER_TYPE_NCLC = LSMASH_4CC( 'n', 'c', 'l', 'c' ),      /* nonconstant luminance coding */
-    QT_COLOR_PARAMETER_TYPE_PROF = LSMASH_4CC( 'p', 'r', 'o', 'f' ),      /* ICC profile */
-};
-
-/* QuickTime Audio flags */
-enum qt_compression_id
-{
-    QT_COMPRESSION_ID_NOT_COMPRESSED            = 0,
-    QT_COMPRESSION_ID_FIXED_COMPRESSION         = -1,
-    QT_COMPRESSION_ID_VARIABLE_COMPRESSION      = -2,
-    QT_COMPRESSION_ID_TWO_TO_ONE                = 1,
-    QT_COMPRESSION_ID_EIGHT_TO_THREE            = 2,
-    QT_COMPRESSION_ID_THREE_TO_ONE              = 3,
-    QT_COMPRESSION_ID_SIX_TO_ONE                = 4,
-    QT_COMPRESSION_ID_SIX_TO_ONE_PACKET_SIZE    = 8,
-    QT_COMPRESSION_ID_THREE_TO_ONE_PACKET_SIZE  = 16,
-};
-
-enum qt_audio_format_flags
-{
-    QT_AUDIO_FORMAT_FLAG_FLOAT            = 1,      /* Set for floating point, clear for integer. */
-    QT_AUDIO_FORMAT_FLAG_BIG_ENDIAN       = 1<<1,   /* Set for big endian, clear for little endian. */
-    QT_AUDIO_FORMAT_FLAG_SIGNED_INTEGER   = 1<<2,   /* Set for signed integer, clear for unsigned integer.
-                                                     * This is only valid if QT_AUDIO_FORMAT_FLAG_FLOAT is clear. */
-    QT_AUDIO_FORMAT_FLAG_PACKED           = 1<<3,   /* Set if the sample bits occupy the entire available bits for the channel,
-                                                     * clear if they are high or low aligned within the channel. */
-    QT_AUDIO_FORMAT_FLAG_ALIGNED_HIGH     = 1<<4,   /* Set if the sample bits are placed into the high bits of the channel, clear for low bit placement.
-                                                     * This is only valid if QT_AUDIO_FORMAT_FLAG_PACKED is clear. */
-    QT_AUDIO_FORMAT_FLAG_NON_INTERLEAVED  = 1<<5,   /* Set if the samples for each channel are located contiguously and the channels are layed out end to end,
-                                                     * clear if the samples for each frame are layed out contiguously and the frames layed out end to end. */
-    QT_AUDIO_FORMAT_FLAG_NON_MIXABLE      = 1<<6,   /* Set to indicate when a format is non-mixable.
-                                                     * Note that this flag is only used when interacting with the HAL's stream format information.
-                                                     * It is not a valid flag for any other uses. */
-    QT_AUDIO_FORMAT_FLAG_ALL_CLEAR        = 1<<31,  /* Set if all the flags would be clear in order to preserve 0 as the wild card value. */
-
-    QT_LPCM_FORMAT_FLAG_FLOAT             = QT_AUDIO_FORMAT_FLAG_FLOAT,
-    QT_LPCM_FORMAT_FLAG_BIG_ENDIAN        = QT_AUDIO_FORMAT_FLAG_BIG_ENDIAN,
-    QT_LPCM_FORMAT_FLAG_SIGNED_INTEGER    = QT_AUDIO_FORMAT_FLAG_SIGNED_INTEGER,
-    QT_LPCM_FORMAT_FLAG_PACKED            = QT_AUDIO_FORMAT_FLAG_PACKED,
-    QT_LPCM_FORMAT_FLAG_ALIGNED_HIGH      = QT_AUDIO_FORMAT_FLAG_ALIGNED_HIGH,
-    QT_LPCM_FORMAT_FLAG_NON_INTERLEAVED   = QT_AUDIO_FORMAT_FLAG_NON_INTERLEAVED,
-    QT_LPCM_FORMAT_FLAG_NON_MIXABLE       = QT_AUDIO_FORMAT_FLAG_NON_MIXABLE,
-    QT_LPCM_FORMAT_FLAG_ALL_CLEAR         = QT_AUDIO_FORMAT_FLAG_ALL_CLEAR,
-
-    /* These flags are set for Apple Lossless data that was sourced from N bit native endian signed integer data. */
-    QT_ALAC_FORMAT_FLAG_16BIT_SOURCE_DATA = 1,
-    QT_ALAC_FORMAT_FLAG_20BIT_SOURCE_DATA = 2,
-    QT_ALAC_FORMAT_FLAG_24BIT_SOURCE_DATA = 3,
-    QT_ALAC_FORMAT_FLAG_32BIT_SOURCE_DATA = 4,
+    QT_COLOR_PARAMETER_TYPE_NCLC   = LSMASH_4CC( 'n', 'c', 'l', 'c' ),      /* NonConstant Luminance Coding */
+    QT_COLOR_PARAMETER_TYPE_PROF   = LSMASH_4CC( 'p', 'r', 'o', 'f' ),      /* ICC profile */
 };
 
 /* Sample grouping types */
@@ -2102,7 +2088,7 @@ typedef enum
     ISOM_GROUP_TYPE_AVSS = LSMASH_4CC( 'a', 'v', 's', 's' ),      /* AVC Sub Sequence */
     ISOM_GROUP_TYPE_DTRT = LSMASH_4CC( 'd', 't', 'r', 't' ),      /* Decode re-timing */
     ISOM_GROUP_TYPE_MVIF = LSMASH_4CC( 'm', 'v', 'i', 'f' ),      /* MVC Scalability Information */
-    ISOM_GROUP_TYPE_RAP  = LSMASH_4CC( 'r', 'a', 'p', ' ' ),      /* Random Access Point / This grouping type hasn't been published yet. */
+    ISOM_GROUP_TYPE_RAP  = LSMASH_4CC( 'r', 'a', 'p', ' ' ),      /* Random Access Point */
     ISOM_GROUP_TYPE_RASH = LSMASH_4CC( 'r', 'a', 's', 'h' ),      /* Rate Share */
     ISOM_GROUP_TYPE_ROLL = LSMASH_4CC( 'r', 'o', 'l', 'l' ),      /* Random Access Recovery Point */
     ISOM_GROUP_TYPE_SCIF = LSMASH_4CC( 's', 'c', 'i', 'f' ),      /* SVC Scalability Information */
@@ -2115,12 +2101,19 @@ int isom_is_lpcm_audio( void *box );
 int isom_is_uncompressed_ycbcr( uint32_t type );
 
 void isom_init_box_common( void *box, void *parent, uint32_t type );
+uint32_t isom_skip_box_common( uint8_t **p_data );
+
+void isom_bs_put_basebox_common( lsmash_bs_t *bs, isom_box_t *box );
+void isom_bs_put_fullbox_common( lsmash_bs_t *bs, isom_box_t *box );
+void isom_bs_put_box_common( lsmash_bs_t *bs, void *box );
 
 int isom_check_compatibility( lsmash_root_t *root );
 
 char *isom_4cc2str( uint32_t fourcc );
 
 isom_trak_entry_t *isom_get_trak( lsmash_root_t *root, uint32_t track_ID );
+isom_trex_entry_t *isom_get_trex( isom_mvex_t *mvex, uint32_t track_ID );
+isom_tfra_entry_t *isom_get_tfra( isom_mfra_t *mfra, uint32_t track_ID );
 isom_sgpd_entry_t *isom_get_sample_group_description( isom_stbl_t *stbl, uint32_t grouping_type );
 isom_sbgp_entry_t *isom_get_sample_to_group( isom_stbl_t *stbl, uint32_t grouping_type );
 
@@ -2166,6 +2159,7 @@ void isom_remove_cspc( isom_cspc_t *cspc );
 void isom_remove_fiel( isom_fiel_t *fiel );
 void isom_remove_sgbt( isom_sgbt_t *sgbt );
 void isom_remove_stsl( isom_stsl_t *stsl );
+void isom_remove_esds( isom_esds_t *esds );
 void isom_remove_avcC( isom_avcC_t *avcC );
 void isom_remove_btrt( isom_btrt_t *btrt );
 void isom_remove_frma( isom_frma_t *frma );
@@ -2181,12 +2175,12 @@ void isom_remove_data( isom_data_t *data );
 void isom_remove_metaitem( isom_metaitem_t *metaitem );
 void isom_remove_ilst( isom_ilst_t *ilst );
 void isom_remove_sample_description( isom_sample_entry_t *sample );
+void isom_remove_unknown_box( isom_unknown_box_t *unknown_box );
 
 #define isom_create_box( box_name, parent_name, box_4cc ) \
-    isom_##box_name##_t *(box_name) = malloc( sizeof(isom_##box_name##_t) ); \
+    isom_##box_name##_t *(box_name) = lsmash_malloc_zero( sizeof(isom_##box_name##_t) ); \
     if( !box_name ) \
         return -1; \
-    memset( box_name, 0, sizeof(isom_##box_name##_t) ); \
     isom_init_box_common( box_name, parent_name, box_4cc )
 
 #define isom_create_list_box( box_name, parent_name, box_4cc ) \

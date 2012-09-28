@@ -9,6 +9,12 @@
 #import "XLDFdkAacOutputTask.h"
 typedef int64_t xldoffset_t;
 #import "XLDTrack.h"
+#import "l-smash/utils.h"
+#import "l-smash/mp4a.h"
+struct lsmash_codec_specific_list_tag
+{
+    lsmash_entry_list_t list;
+};
 
 #define MP4SYS_ADTS_MAX_FRAME_LENGTH ( ( 1 << 13 ) - 1 )
 
@@ -228,18 +234,53 @@ fail:
 	lsmash_set_media_parameters( root, tid, &media_param );
 	
 	/* setup track sample summary */
-	summary = (lsmash_audio_summary_t *)lsmash_create_summary(MP4SYS_STREAM_TYPE_AudioStream);
+	summary = (lsmash_audio_summary_t *)lsmash_create_summary( LSMASH_SUMMARY_TYPE_AUDIO );
 	summary->sample_type            = ISOM_CODEC_TYPE_MP4A_AUDIO;
-	summary->object_type_indication = MP4SYS_OBJECT_TYPE_Audio_ISO_14496_3;
 	summary->max_au_length          = MP4SYS_ADTS_MAX_FRAME_LENGTH;
 	summary->frequency              = sbrEnabled ? format.samplerate/2 : format.samplerate;
 	summary->channels               = psEnabled ? 1 : format.channels;
-	summary->bit_depth              = 16;
+	summary->sample_size            = 16;
 	summary->samples_in_frame       = 1024;
 	summary->aot                    = MP4A_AUDIO_OBJECT_TYPE_AAC_LC;
 	summary->sbr_mode               = sbrEnabled ? MP4A_AAC_SBR_BACKWARD_COMPATIBLE : MP4A_AAC_SBR_NOT_SPECIFIED;
 	lsmash_setup_AudioSpecificConfig(summary);
-	sample_entry = lsmash_add_sample_entry( root, tid, ISOM_CODEC_TYPE_MP4A_AUDIO, summary );
+	uint32_t data_length;
+	uint8_t *data = mp4a_export_AudioSpecificConfig(summary->aot, summary->frequency, summary->channels, summary->sbr_mode,
+													NULL, 0, &data_length );
+	if(!data) {
+		lsmash_cleanup_summary( (lsmash_summary_t *)summary );
+		summary = NULL;
+		return NO;
+	}
+	lsmash_codec_specific_t *specific = lsmash_create_codec_specific_data(LSMASH_CODEC_SPECIFIC_DATA_TYPE_MP4SYS_DECODER_CONFIG,
+																		  LSMASH_CODEC_SPECIFIC_FORMAT_STRUCTURED);
+	if(!specific) {
+		lsmash_cleanup_summary( (lsmash_summary_t *)summary );
+		free(data);
+		summary = NULL;
+		return NO;
+	}
+	lsmash_mp4sys_decoder_parameters_t *param = (lsmash_mp4sys_decoder_parameters_t *)specific->data.structured;
+    param->objectTypeIndication = MP4SYS_OBJECT_TYPE_Audio_ISO_14496_3;
+    param->streamType           = MP4SYS_STREAM_TYPE_AudioStream;
+    if( lsmash_set_mp4sys_decoder_specific_info( param, data, data_length ) )
+	{
+		lsmash_cleanup_summary( (lsmash_summary_t *)summary );
+		lsmash_destroy_codec_specific_data( specific );
+		free( data );
+		summary = NULL;
+		return NO;
+	}
+	free( data );
+	
+	if( lsmash_add_entry( &summary->opaque->list, specific ) ) {
+		lsmash_cleanup_summary( (lsmash_summary_t *)summary );
+		lsmash_destroy_codec_specific_data( specific );
+		summary = NULL;
+		return NO;
+	}
+	
+	sample_entry = lsmash_add_sample_entry( root, tid, summary );
 	
 	outbuf = malloc(65536);
 	inDesc = allocDesc();

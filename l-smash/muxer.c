@@ -848,9 +848,9 @@ static int prepare_output( muxer_t *muxer )
             lsmash_media_parameters_t media_param;
             lsmash_initialize_media_parameters( &media_param );
             media_param.ISO_language = track_opt->ISO_language;
-            switch( in_track->summary->stream_type )
+            switch( in_track->summary->summary_type )
             {
-                case MP4SYS_STREAM_TYPE_VisualStream :
+                case LSMASH_SUMMARY_TYPE_VIDEO :
                 {
                     out_track->track_ID = lsmash_create_track( output->root, ISOM_MEDIA_HANDLER_TYPE_VIDEO_TRACK );
                     if( !out_track->track_ID )
@@ -899,6 +899,11 @@ static int prepare_output( muxer_t *muxer )
                                     timebase  = well_known_fps[i].timebase;
                                     break;
                                 }
+                            lsmash_codec_specific_t *bitrate = lsmash_create_codec_specific_data( LSMASH_CODEC_SPECIFIC_DATA_TYPE_ISOM_VIDEO_H264_BITRATE,
+                                                                                                  LSMASH_CODEC_SPECIFIC_FORMAT_STRUCTURED );
+                            if( bitrate )
+                                lsmash_add_codec_specific_data( in_track->summary, bitrate );
+                            lsmash_destroy_codec_specific_data( bitrate );
                         }
                         else
                         {
@@ -914,7 +919,7 @@ static int prepare_output( muxer_t *muxer )
                     out_track->timebase  = timebase;
                     break;
                 }
-                case MP4SYS_STREAM_TYPE_AudioStream :
+                case LSMASH_SUMMARY_TYPE_AUDIO :
                 {
                     out_track->track_ID = lsmash_create_track( output->root, ISOM_MEDIA_HANDLER_TYPE_AUDIO_TRACK );
                     if( !out_track->track_ID )
@@ -922,7 +927,8 @@ static int prepare_output( muxer_t *muxer )
                     lsmash_audio_summary_t *summary = (lsmash_audio_summary_t *)in_track->summary;
                     if( track_opt->sbr )
                     {
-                        if( summary->object_type_indication != MP4SYS_OBJECT_TYPE_Audio_ISO_14496_3 )
+                        /* Check if explicit SBR is valid or not. */
+                        if( lsmash_mp4sys_get_object_type_indication( (lsmash_summary_t *)summary ) != MP4SYS_OBJECT_TYPE_Audio_ISO_14496_3 )
                             return ERROR_MSG( "--sbr is only valid with MPEG-4 Audio.\n" );
                         summary->sbr_mode = MP4A_AAC_SBR_BACKWARD_COMPATIBLE;
                         if( lsmash_setup_AudioSpecificConfig( summary ) )
@@ -947,7 +953,7 @@ static int prepare_output( muxer_t *muxer )
             if( lsmash_set_media_parameters( output->root, out_track->track_ID, &media_param ) )
                 return ERROR_MSG( "failed to set media parameters.\n" );
             out_track->summary = in_track->summary;
-            out_track->sample_entry = lsmash_add_sample_entry( output->root, out_track->track_ID, out_track->summary->sample_type, out_track->summary );
+            out_track->sample_entry = lsmash_add_sample_entry( output->root, out_track->track_ID, out_track->summary );
             if( !out_track->sample_entry )
                 return ERROR_MSG( "failed to add sample description entry.\n" );
             out_track->active = 1;
@@ -1007,7 +1013,7 @@ static int do_mux( muxer_t *muxer )
                     input_track_t *in_track = &input->track[input->current_track_number - 1];
                     lsmash_cleanup_summary( in_track->summary );
                     out_track->summary = in_track->summary = mp4sys_duplicate_summary( input->importer, input->current_track_number );
-                    out_track->sample_entry = lsmash_add_sample_entry( output->root, out_track->track_ID, out_track->summary->sample_type, out_track->summary );
+                    out_track->sample_entry = lsmash_add_sample_entry( output->root, out_track->track_ID, out_track->summary );
                     if( !out_track->sample_entry )
                     {
                         ERROR_MSG( "failed to add sample description entry.\n" );
