@@ -140,38 +140,26 @@ char *isom_4cc2str( uint32_t fourcc )
     return str;
 }
 
-static inline void isom_init_basebox_common( isom_box_t *box, isom_box_t *parent, uint32_t type )
+lsmash_box_uuid_t isom_form_box_uuid( uint32_t type, const uint8_t id[12] )
 {
-    box->root     = parent->root;
-    box->parent   = parent;
-    box->size     = 0;
-    box->type     = type;
-    box->usertype = NULL;
-}
-
-static inline void isom_init_fullbox_common( isom_box_t *box, isom_box_t *parent, uint32_t type )
-{
-    box->root     = parent->root;
-    box->parent   = parent;
-    box->size     = 0;
-    box->type     = type;
-    box->usertype = NULL;
-    box->version  = 0;
-    box->flags    = 0;
+    return (lsmash_box_uuid_t){ type, { id[0], id[1], id[2], id[3], id[4],  id[5],
+                                        id[6], id[7], id[8], id[9], id[10], id[11] } };
 }
 
 void isom_init_box_common( void *box, void *parent, uint32_t type )
 {
-    assert( parent && ((isom_box_t *)parent)->root );
-    if( ((isom_box_t *)parent)->type == ISOM_BOX_TYPE_STSD )
-    {
-        isom_init_basebox_common( (isom_box_t *)box, (isom_box_t *)parent, type );
+    assert( box && parent && ((isom_box_t *)parent)->root );
+    isom_box_t *_box    = (isom_box_t *)box;
+    isom_box_t *_parent = (isom_box_t *)parent;
+    _box->root   = _parent->root;
+    _box->parent = _parent;
+    _box->size   = 0;
+    _box->type   = type;
+    _box->user   = isom_form_box_uuid( type, ISO_12_BYTES );
+    if( _parent->type == ISOM_BOX_TYPE_STSD || !isom_is_fullbox( _box ) )
         return;
-    }
-    if( isom_is_fullbox( box ) )
-        isom_init_fullbox_common( (isom_box_t *)box, (isom_box_t *)parent, type );
-    else
-        isom_init_basebox_common( (isom_box_t *)box, (isom_box_t *)parent, type );
+    _box->version = 0;
+    _box->flags   = 0;
 }
 
 uint32_t isom_skip_box_common( uint8_t **p_data )
@@ -204,7 +192,10 @@ void isom_bs_put_basebox_common( lsmash_bs_t *bs, isom_box_t *box )
         lsmash_bs_put_be32( bs, box->type );
     }
     if( box->type == ISOM_BOX_TYPE_UUID )
-        lsmash_bs_put_bytes( bs, 16, box->usertype );
+    {
+        lsmash_bs_put_be32( bs, box->user.type );
+        lsmash_bs_put_bytes( bs, 12, box->user.id );
+    }
 }
 
 void isom_bs_put_fullbox_common( lsmash_bs_t *bs, isom_box_t *box )
@@ -318,9 +309,15 @@ isom_tref_type_t *isom_add_track_reference_type( isom_tref_t *tref, isom_track_r
     isom_tref_type_t *ref = lsmash_malloc_zero( sizeof(isom_tref_type_t) );
     if( !ref )
         return NULL;
-    isom_init_basebox_common( (isom_box_t *)ref, (isom_box_t *)tref, type );
+    /* Initialize common fields. */
+    ref->root   = tref->root;
+    ref->parent = (isom_box_t *)tref;
+    ref->size   = 0;
+    ref->type   = type;
+    ref->user   = isom_form_box_uuid( type, ISO_12_BYTES );
+    /* */
     ref->ref_count = ref_count;
-    ref->track_ID = track_ID;
+    ref->track_ID  = track_ID;
     if( lsmash_add_entry( tref->ref_list, ref ) )
     {
         free( ref );
@@ -2328,6 +2325,8 @@ void isom_remove_chan( isom_chan_t *chan )
 static void isom_remove_visual_description( isom_visual_entry_t *visual )
 {
     isom_remove_sample_description_extensions( &visual->extensions );
+    if( visual->color_table.array )
+        free( visual->color_table.array );
     free( visual );
 }
 
@@ -2884,6 +2883,18 @@ static void isom_remove_iods( isom_iods_t *iods )
     isom_remove_box( iods, isom_moov_t );
 }
 
+void isom_remove_ctab( isom_ctab_t *ctab )
+{
+    if( !ctab )
+        return;
+    if( ctab->color_table.array )
+        free( ctab->color_table.array );
+    if( ctab->parent && ctab->parent->type == ISOM_BOX_TYPE_MOOV )
+        isom_remove_box( ctab, isom_moov_t );
+    else
+        free( ctab );
+}
+
 static void isom_remove_mehd( isom_mehd_t *mehd )
 {
     if( !mehd )
@@ -2910,6 +2921,7 @@ static void isom_remove_moov( lsmash_root_t *root )
     isom_remove_iods( moov->iods );
     lsmash_remove_list( moov->trak_list, isom_remove_trak );
     isom_remove_udta( moov->udta );
+    isom_remove_ctab( moov->ctab );
     isom_remove_meta( moov->meta );
     isom_remove_mvex( moov->mvex );
     free( moov );
@@ -3902,6 +3914,15 @@ static uint64_t isom_update_iods_size( isom_iods_t *iods )
     return iods->size;
 }
 
+static uint64_t isom_update_ctab_size( isom_ctab_t *ctab )
+{
+    if( !ctab )
+        return 0;
+    ctab->size = ISOM_BASEBOX_COMMON_SIZE + (uint64_t)(1 + ctab->color_table.size + !!ctab->color_table.array) * 8;
+    CHECK_LARGESIZE( ctab );
+    return ctab->size;
+}
+
 static uint64_t isom_update_tkhd_size( isom_tkhd_t *tkhd )
 {
     if( !tkhd )
@@ -4225,6 +4246,8 @@ static uint64_t isom_update_visual_entry_size( isom_visual_entry_t *visual )
     if( !visual )
         return 0;
     visual->size = ISOM_BASEBOX_COMMON_SIZE + 78;
+    if( visual->color_table_ID == 0 )
+        visual->size += (uint64_t)(1 + visual->color_table.size + !!visual->color_table.array) * 8;
     CHECK_LARGESIZE( visual );
     return visual->size;
 }
@@ -4788,6 +4811,7 @@ static int isom_update_moov_size( isom_moov_t *moov )
         + isom_update_mvhd_size( moov->mvhd )
         + isom_update_iods_size( moov->iods )
         + isom_update_udta_size( moov->udta, NULL )
+        + isom_update_ctab_size( moov->ctab )
         + isom_update_meta_size( moov->meta )
         + isom_update_mvex_size( moov->mvex );
     if( moov->trak_list )
@@ -7372,9 +7396,11 @@ static int isom_add_chunk( isom_trak_entry_t *trak, lsmash_sample_t *sample )
     /* NOTE: chunk relative stuff must be pushed into root after a chunk is fully determined with its contents. */
     /* now current cached chunk is fixed, actually add chunk relative properties to root accordingly. */
     isom_stbl_t *stbl = trak->mdia->minf->stbl;
-    lsmash_entry_t *last_stsc_entry = stbl->stsc->list->tail;
+    isom_stsc_entry_t *last_stsc_data = stbl->stsc->list->tail ? (isom_stsc_entry_t *)stbl->stsc->list->tail->data : NULL;
     /* Create a new chunk sequence in this track if needed. */
-    if( (!last_stsc_entry || current->pool->sample_count != ((isom_stsc_entry_t *)last_stsc_entry->data)->samples_per_chunk)
+    if( (!last_stsc_data
+      || current->pool->sample_count       != last_stsc_data->samples_per_chunk
+      || current->sample_description_index != last_stsc_data->sample_description_index)
      && isom_add_stsc_entry( stbl, current->chunk_number, current->pool->sample_count, current->sample_description_index ) )
         return -1;
     /* Add a new chunk offset in this track. */
@@ -7454,9 +7480,11 @@ static int isom_output_cached_chunk( isom_trak_entry_t *trak )
     lsmash_root_t *root = trak->root;
     isom_chunk_t *chunk = &trak->cache->chunk;
     isom_stbl_t *stbl = trak->mdia->minf->stbl;
-    lsmash_entry_t *last_stsc_entry = stbl->stsc->list->tail;
+    isom_stsc_entry_t *last_stsc_data = stbl->stsc->list->tail ? (isom_stsc_entry_t *)stbl->stsc->list->tail->data : NULL;
     /* Create a new chunk sequence in this track if needed. */
-    if( (!last_stsc_entry || chunk->pool->sample_count != ((isom_stsc_entry_t *)last_stsc_entry->data)->samples_per_chunk)
+    if( (!last_stsc_data
+      || chunk->pool->sample_count       != last_stsc_data->samples_per_chunk
+      || chunk->sample_description_index != last_stsc_data->sample_description_index)
      && isom_add_stsc_entry( stbl, chunk->chunk_number, chunk->pool->sample_count, chunk->sample_description_index ) )
         return -1;
     if( root->fragment )

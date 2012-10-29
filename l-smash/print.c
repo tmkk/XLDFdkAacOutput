@@ -163,9 +163,26 @@ static inline int isom_print_simple( FILE *fp, isom_box_t *box, int level, char 
     if( !box )
         return -1;
     int indent = level;
-    lsmash_ifprintf( fp, indent++, "[%s: %s]\n", isom_4cc2str( box->type ), name );
-    lsmash_ifprintf( fp, indent, "position = %"PRIu64"\n", box->pos );
-    lsmash_ifprintf( fp, indent, "size = %"PRIu64"\n", box->size );
+    if( box->type != ISOM_BOX_TYPE_UUID )
+    {
+        lsmash_ifprintf( fp, indent++, "[%s: %s]\n", isom_4cc2str( box->type ), name );
+        lsmash_ifprintf( fp, indent, "position = %"PRIu64"\n", box->pos );
+        lsmash_ifprintf( fp, indent, "size = %"PRIu64"\n", box->size );
+    }
+    else
+    {
+        lsmash_ifprintf( fp, indent++, "[uuid: UUID Box]\n" );
+        lsmash_ifprintf( fp, indent, "position = %"PRIu64"\n", box->pos );
+        lsmash_ifprintf( fp, indent, "size = %"PRIu64"\n", box->size );
+        lsmash_ifprintf( fp, indent++, "usertype\n" );
+        lsmash_ifprintf( fp, indent, "type = %s\n", isom_4cc2str( box->user.type ) );
+        lsmash_ifprintf( fp, indent, "name = %s\n", name );
+        lsmash_ifprintf( fp, indent, "uuid = 0x%08"PRIx32"-%04"PRIx16"-%04"PRIx16"-%04"PRIx16"-%04"PRIx16"0x%08"PRIx32"\n",
+                         box->user.type,
+                         (box->user.id[0] << 8) | box->user.id[1], (box->user.id[2] << 8) | box->user.id[3],
+                         (box->user.id[4] << 8) | box->user.id[5], (box->user.id[6] << 8) | box->user.id[7],
+                         (box->user.id[8] << 24) | (box->user.id[9] << 16) | (box->user.id[10] << 8) | box->user.id[11] );
+    }
     return 0;
 }
 
@@ -202,9 +219,25 @@ static int isom_print_unknown( FILE *fp, lsmash_root_t *root, isom_box_t *box, i
     if( !box )
         return -1;
     int indent = level;
-    lsmash_ifprintf( fp, indent++, "[%s]\n", isom_4cc2str( box->type ) );
-    lsmash_ifprintf( fp, indent, "position = %"PRIu64"\n", box->pos );
-    lsmash_ifprintf( fp, indent, "size = %"PRIu64"\n", box->size );
+    if( box->type != ISOM_BOX_TYPE_UUID )
+    {
+        lsmash_ifprintf( fp, indent++, "[%s]\n", isom_4cc2str( box->type ) );
+        lsmash_ifprintf( fp, indent, "position = %"PRIu64"\n", box->pos );
+        lsmash_ifprintf( fp, indent, "size = %"PRIu64"\n", box->size );
+    }
+    else
+    {
+        lsmash_ifprintf( fp, indent++, "[uuid: UUID Box]\n" );
+        lsmash_ifprintf( fp, indent, "position = %"PRIu64"\n", box->pos );
+        lsmash_ifprintf( fp, indent, "size = %"PRIu64"\n", box->size );
+        lsmash_ifprintf( fp, indent++, "usertype\n" );
+        lsmash_ifprintf( fp, indent, "type = %s\n", isom_4cc2str( box->user.type ) );
+        lsmash_ifprintf( fp, indent, "uuid = 0x%08"PRIx32"-%04"PRIx16"-%04"PRIx16"-%04"PRIx16"-%04"PRIx16"%08"PRIx32"\n",
+                         box->user.type,
+                         (box->user.id[0] << 8) | box->user.id[1], (box->user.id[2] << 8) | box->user.id[3],
+                         (box->user.id[4] << 8) | box->user.id[5], (box->user.id[6] << 8) | box->user.id[7],
+                         (box->user.id[8] << 24) | (box->user.id[9] << 16) | (box->user.id[10] << 8) | box->user.id[11] );
+    }
     return 0;
 }
 
@@ -269,6 +302,32 @@ static int isom_print_mvhd( FILE *fp, lsmash_root_t *root, isom_box_t *box, int 
         lsmash_ifprintf( fp, indent, "pre_defined = 0x%08"PRIx32"\n", mvhd->currentTime );
     }
     lsmash_ifprintf( fp, indent, "next_track_ID = %"PRIu32"\n", mvhd->next_track_ID );
+    return 0;
+}
+
+static void isom_pring_qt_color_table( FILE *fp, int indent, isom_qt_color_table_t *color_table )
+{
+    isom_qt_color_array_t *array = color_table->array;
+    if( !array )
+        return;
+    lsmash_ifprintf( fp, indent, "ctSeed = %"PRIu32"\n", color_table->seed );
+    lsmash_ifprintf( fp, indent, "ctFlags = 0x%04"PRIx16"\n", color_table->flags );
+    lsmash_ifprintf( fp, indent, "ctSize = %"PRIu16"\n", color_table->size );
+    lsmash_ifprintf( fp, indent++, "ctTable\n" );
+    for( uint16_t i = 0; i <= color_table->size; i++ )
+        lsmash_ifprintf( fp, indent,
+                         "color[%"PRIu16"] = { 0x%04"PRIx16", 0x%04"PRIx16", 0x%04"PRIx16", 0x%04"PRIx16" }\n",
+                         i, array[i].value, array[i].r, array[i].g, array[i].b );
+}
+
+static int isom_print_ctab( FILE *fp, lsmash_root_t *root, isom_box_t *box, int level )
+{
+    if( !box )
+        return -1;
+    isom_ctab_t *ctab = (isom_ctab_t *)box;
+    int indent = level;
+    isom_print_box_common( fp, indent, box, "Color Table Box" );
+    isom_pring_qt_color_table( fp, indent + 1, &ctab->color_table );
     return 0;
 }
 
@@ -627,6 +686,8 @@ static int isom_print_visual_description( FILE *fp, lsmash_root_t *root, isom_bo
         else
             fprintf( fp, "\n" );
         lsmash_ifprintf( fp, indent, "color_table_ID = %"PRId16"\n", visual->color_table_ID );
+        if( visual->color_table_ID == 0 )
+            isom_pring_qt_color_table( fp, indent, &visual->color_table );
     }
     else
     {
@@ -1118,6 +1179,7 @@ static int isom_print_sample_description_extesion( FILE *fp, lsmash_root_t *root
             { QT_BOX_TYPE_FIEL,   isom_print_fiel },
             { QT_BOX_TYPE_CSPC,   isom_print_cspc },
             { QT_BOX_TYPE_SGBT,   isom_print_sgbt },
+            { QT_BOX_TYPE_CTAB,   isom_print_ctab },
             { QT_BOX_TYPE_GLBL,   isom_print_glbl },
             { QT_BOX_TYPE_WAVE,   isom_print_wave },
             { QT_BOX_TYPE_CHAN,   isom_print_chan },
@@ -2255,6 +2317,8 @@ static isom_print_box_t isom_select_print_func( isom_box_t *box )
             return isom_print_mvhd;
         case ISOM_BOX_TYPE_IODS :
             return isom_print_iods;
+        case QT_BOX_TYPE_CTAB :
+            return isom_print_ctab;
         case ISOM_BOX_TYPE_TRAK :
             return isom_print_trak;
         case ISOM_BOX_TYPE_TKHD :

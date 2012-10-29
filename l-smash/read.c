@@ -38,26 +38,49 @@ static int isom_read_box( lsmash_root_t *root, isom_box_t *box, isom_box_t *pare
 
 static int isom_bs_read_box_common( lsmash_bs_t *bs, isom_box_t *box, uint32_t read_size )
 {
-    /* read size and type */
+    /* Read size and type. */
     if( lsmash_bs_read_data( bs, read_size ) )
         return -1;
     if( feof( bs->stream ) )
         return 1;
     box->size = lsmash_bs_get_be32( bs );
     box->type = lsmash_bs_get_be32( bs );
+    /* Read more bytes if needed. */
+    int uuidbox = (box->type == ISOM_BOX_TYPE_UUID);
+    int fullbox = isom_is_fullbox( box );
+    int more_read_size = 8 * (box->size == 1) + 16 * uuidbox + 4 * fullbox;
+    if( more_read_size > 0 && lsmash_bs_read_data( bs, more_read_size ) )
+        return -1;
+    /* If size is set to 1, the actual size is repersented in the next 8 bytes.
+     * If size is set to 0, this box ends at the end of the stream. */
     if( box->size == 1 )
-    {
-        if( lsmash_bs_read_data( bs, sizeof(uint64_t) ) )
-            return -1;
         box->size = lsmash_bs_get_be64( bs );
-    }
-    if( box->size == 0 )
+    else if( box->size == 0 )
         box->manager |= LSMASH_LAST_BOX;
-    if( isom_is_fullbox( box ) )
+    if( uuidbox )
     {
-        /* read version and flags */
-        if( lsmash_bs_read_data( bs, sizeof(uint32_t) ) )
-            return -1;
+        /* Get UUID. */
+        uint64_t temp64 = lsmash_bs_get_be64( bs );
+        box->user.type  = (temp64 >> 32) & 0xffffffff;
+        box->user.id[0] = (temp64 >> 24) & 0xff;
+        box->user.id[1] = (temp64 >> 16) & 0xff;
+        box->user.id[2] = (temp64 >>  8) & 0xff;
+        box->user.id[3] =  temp64        & 0xff;
+        temp64 = lsmash_bs_get_be64( bs );
+        box->user.id[4]  = (temp64 >> 56) & 0xff;
+        box->user.id[5]  = (temp64 >> 48) & 0xff;
+        box->user.id[6]  = (temp64 >> 40) & 0xff;
+        box->user.id[7]  = (temp64 >> 32) & 0xff;
+        box->user.id[8]  = (temp64 >> 24) & 0xff;
+        box->user.id[9]  = (temp64 >> 16) & 0xff;
+        box->user.id[10] = (temp64 >>  8) & 0xff;
+        box->user.id[11] =  temp64        & 0xff;
+    }
+    else
+        box->user = isom_form_box_uuid( box->type, ISO_12_BYTES );
+    if( fullbox )
+    {
+        /* Get version and flags. */
         box->version = lsmash_bs_get_byte( bs );
         box->flags   = lsmash_bs_get_be24( bs );
         box->manager |= LSMASH_FULLBOX;
@@ -67,26 +90,26 @@ static int isom_bs_read_box_common( lsmash_bs_t *bs, isom_box_t *box, uint32_t r
 
 static void isom_basebox_common_copy( isom_box_t *dst, isom_box_t *src )
 {
-    dst->root     = src->root;
-    dst->parent   = src->parent;
-    dst->manager  = src->manager;
-    dst->pos      = src->pos;
-    dst->size     = src->size;
-    dst->type     = src->type;
-    dst->usertype = src->usertype;
+    dst->root    = src->root;
+    dst->parent  = src->parent;
+    dst->manager = src->manager;
+    dst->pos     = src->pos;
+    dst->size    = src->size;
+    dst->type    = src->type;
+    dst->user    = src->user;
 }
 
 static void isom_fullbox_common_copy( isom_box_t *dst, isom_box_t *src )
 {
-    dst->root     = src->root;
-    dst->parent   = src->parent;
-    dst->manager  = src->manager;
-    dst->pos      = src->pos;
-    dst->size     = src->size;
-    dst->type     = src->type;
-    dst->usertype = src->usertype;
-    dst->version  = src->version;
-    dst->flags    = src->flags;
+    dst->root    = src->root;
+    dst->parent  = src->parent;
+    dst->manager = src->manager;
+    dst->pos     = src->pos;
+    dst->size    = src->size;
+    dst->type    = src->type;
+    dst->user    = src->user;
+    dst->version = src->version;
+    dst->flags   = src->flags;
 }
 
 static void isom_box_common_copy( void *dst, void *src )
@@ -323,6 +346,51 @@ static int isom_read_iods( lsmash_root_t *root, isom_box_t *box, isom_box_t *par
         return -1;
     }
     return 0;
+}
+
+static int isom_read_qt_color_table( lsmash_bs_t *bs, isom_qt_color_table_t *color_table )
+{
+    if( lsmash_bs_read_data( bs, 8 ) )
+        return -1;
+    color_table->seed  = lsmash_bs_get_be32( bs );
+    color_table->flags = lsmash_bs_get_be16( bs );
+    color_table->size  = lsmash_bs_get_be16( bs );
+    if( lsmash_bs_read_data( bs, (color_table->size + 1) * 8 ) )
+        return -1;
+    isom_qt_color_array_t *array = lsmash_malloc_zero( (color_table->size + 1) * sizeof(isom_qt_color_array_t) );
+    if( !array )
+        return -1;
+    color_table->array = array;
+    for( uint16_t i = 0; i <= color_table->size; i++ )
+    {
+        uint64_t color = lsmash_bs_get_be64( bs );
+        array[i].value = (color >> 48) & 0xffff;
+        array[i].r     = (color >> 32) & 0xffff;
+        array[i].g     = (color >> 16) & 0xffff;
+        array[i].b     =  color        & 0xffff;
+    }
+    return 0;
+}
+
+static int isom_read_ctab( lsmash_root_t *root, isom_box_t *box, isom_box_t *parent, int level )
+{
+    /* According to QuickTime File Format Specification, this box is placed inside Movie Box if present.
+     * However, sometimes this box occurs inside an image description entry or the end of Sample Description Box. */
+    isom_create_box( ctab, parent, box->type );
+    if( parent->type == ISOM_BOX_TYPE_MOOV )
+        ((isom_moov_t *)parent)->ctab = ctab;
+    else
+        if( isom_add_extension_box( &parent->extensions, ctab, isom_remove_ctab ) )
+        {
+            free( ctab );
+            return -1;
+        }
+    lsmash_bs_t *bs = root->bs;
+    if( isom_read_qt_color_table( bs, &ctab->color_table ) )
+        return -1;
+    box->parent = parent;
+    isom_box_common_copy( ctab, box );
+    return isom_add_print_func( root, ctab, level );
 }
 
 static int isom_read_trak( lsmash_root_t *root, isom_box_t *box, isom_box_t *parent, int level )
@@ -849,7 +917,7 @@ static int isom_read_stsd( lsmash_root_t *root, isom_box_t *box, isom_box_t *par
         return -1;
     int ret = 0;
     uint64_t stsd_pos = lsmash_bs_get_pos( bs );
-    for( uint32_t i = 0; i < stsd->entry_count; i++ )
+    for( uint32_t i = 0; i < stsd->entry_count || (stsd_pos + ISOM_BASEBOX_COMMON_SIZE) <= stsd->size; i++ )
     {
         ret = isom_read_box( root, box, (isom_box_t *)stsd, stsd_pos, level );
         if( ret )
@@ -1072,6 +1140,10 @@ static int isom_read_visual_description( lsmash_root_t *root, isom_box_t *box, i
         visual->compressorname[i] = lsmash_bs_get_byte( bs );
     visual->depth                 = lsmash_bs_get_be16( bs );
     visual->color_table_ID        = lsmash_bs_get_be16( bs );
+    if( visual->color_table_ID == 0
+     && lsmash_bs_get_pos( bs ) < box->size
+     && isom_read_qt_color_table( bs, &visual->color_table ) )
+        return -1;
     box->parent = parent;
     box->manager |= LSMASH_VIDEO_DESCRIPTION;
     isom_box_common_copy( visual, box );
@@ -2888,6 +2960,8 @@ static int isom_read_box( lsmash_root_t *root, isom_box_t *box, isom_box_t *pare
             return isom_read_mvhd( root, box, parent, level );
         case ISOM_BOX_TYPE_IODS :
             return isom_read_iods( root, box, parent, level );
+        case QT_BOX_TYPE_CTAB :
+            return isom_read_ctab( root, box, parent, level );
         case ISOM_BOX_TYPE_ESDS :
             return isom_read_esds( root, box, parent, level );
         case ISOM_BOX_TYPE_TRAK :

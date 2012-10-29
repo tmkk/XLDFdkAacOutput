@@ -1,8 +1,8 @@
 diff --git box.h box.h
-index 75c18d0..4f451d0 100644
+index 71d140d..539033f 100644
 --- box.h
 +++ box.h
-@@ -1254,6 +1254,7 @@ typedef struct
+@@ -1305,6 +1305,7 @@ typedef struct
      isom_dinf_t *dinf;      /* ISOM: Data Information Box / QTFF: null */
      isom_keys_t *keys;      /* ISOM: null / QTFF: Metadata Item Keys Box */
      isom_ilst_t *ilst;      /* Metadata Item List Box only defined in Apple MPEG-4 and QTFF */
@@ -11,10 +11,10 @@ index 75c18d0..4f451d0 100644
  
  /* Window Location Box */
 diff --git isom.c isom.c
-index a99fdd9..edecbef 100644
+index 839e04c..0daea5a 100644
 --- isom.c
 +++ isom.c
-@@ -1829,6 +1829,16 @@ int isom_add_meta( isom_box_t *parent )
+@@ -1826,6 +1826,16 @@ int isom_add_meta( isom_box_t *parent )
              return -1;
          }
          udta->meta = meta;
@@ -31,7 +31,7 @@ index a99fdd9..edecbef 100644
      }
      return 0;
  }
-@@ -2787,6 +2797,11 @@ static void isom_remove_meta( isom_meta_t *meta )
+@@ -2786,6 +2796,11 @@ static void isom_remove_meta( isom_meta_t *meta )
      isom_remove_dinf( meta->dinf );
      isom_remove_keys( meta->keys );
      isom_remove_ilst( meta->ilst );
@@ -43,7 +43,7 @@ index a99fdd9..edecbef 100644
      if( meta->parent )
      {
          if( !meta->parent->type )
-@@ -4683,6 +4698,7 @@ static uint64_t isom_update_meta_size( isom_meta_t *meta )
+@@ -4706,6 +4721,7 @@ static uint64_t isom_update_meta_size( isom_meta_t *meta )
          + isom_update_hdlr_size( meta->hdlr )
          + isom_update_dinf_size( meta->dinf )
          + isom_update_ilst_size( meta->ilst );
@@ -66,10 +66,10 @@ index dcdab81..7d5ac69 100644
              break;
          case ITUNES_METADATA_ITEM_DISC_NUMBER :
 diff --git write.c write.c
-index bb2e15a..3982d07 100644
+index b97f4c9..19628f7 100644
 --- write.c
 +++ write.c
-@@ -1438,6 +1438,12 @@ int isom_write_meta( lsmash_bs_t *bs, isom_meta_t *meta )
+@@ -1466,6 +1466,12 @@ int isom_write_meta( lsmash_bs_t *bs, isom_meta_t *meta )
       || isom_write_dinf( bs, meta->dinf, meta->type )
       || isom_write_ilst( bs, meta->ilst ) )
          return -1;
