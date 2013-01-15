@@ -436,7 +436,7 @@ fail:
 		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GROUP]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_GROUP];
-			metadata.item = ITUNES_METADATA_ITEM_0XA9_GROUPING;
+			metadata.item = ITUNES_METADATA_ITEM_GROUPING;
 			metadata.type = ITUNES_METADATA_TYPE_STRING;
 			metadata.value.string = (char*)[str UTF8String];
 			metadata.meaning = NULL;
@@ -724,7 +724,7 @@ fail:
 		buffer += outArgs.numInSamples;
 		if(outArgs.numOutBytes) {
 			lsmash_sample_t *sample = lsmash_create_sample( summary->max_au_length );
-			sample->prop.random_access_type = ISOM_SAMPLE_RANDOM_ACCESS_TYPE_SYNC;
+			sample->prop.ra_flags = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_SYNC;
 			sample->prop.pre_roll.distance = 1;
 			sample->index = sample_entry;
 			memcpy(sample->data,outbuf,outArgs.numOutBytes);
@@ -758,7 +758,7 @@ fail:
 		if(err == AACENC_ENCODE_EOF) break;
 		if(outArgs.numOutBytes) {
 			lsmash_sample_t *sample = lsmash_create_sample( summary->max_au_length );
-			sample->prop.random_access_type = ISOM_SAMPLE_RANDOM_ACCESS_TYPE_SYNC;
+			sample->prop.ra_flags = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_SYNC;
 			sample->prop.pre_roll.distance = 1;
 			sample->index = sample_entry;
 			memcpy(sample->data,outbuf,outArgs.numOutBytes);

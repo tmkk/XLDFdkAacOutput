@@ -76,6 +76,54 @@ typedef enum
 } lsmash_boolean_t;
 
 /****************************************************************************
+ * Box
+ ****************************************************************************/
+typedef uint32_t lsmash_compact_box_type_t;
+
+/* An UUID structure for extended box type */
+typedef struct
+{
+    uint32_t fourcc;    /* four characters codes that identify extended box type partially
+                         * If the box is not a UUID box, this field shall be the same as the box type.
+                         * Note: characters in this field aren't always printable. */
+    uint8_t  id[12];    /* If the box is not a UUID box, this field shall be set to 12-byte ISO reserved value
+                         *   { 0x00, 0x11, 0x00, 0x10, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71 }
+                         * and shall not be written into the stream together with above-defined four characters codes.
+                         * As an exception, we could set the value
+                         *   { 0x0F, 0x11, 0x4D, 0xA5, 0xBF, 0x4E, 0xF2, 0xC4, 0x8C, 0x6A, 0xA1, 0x1E }
+                         * to indicate the box is derived from QuickTime file format. */
+} lsmash_extended_box_type_t;
+
+typedef struct
+{
+    lsmash_compact_box_type_t  fourcc;  /* four characters codes that identify box type
+                                         * Note: characters in this field aren't always printable. */
+    lsmash_extended_box_type_t user;    /* Universal Unique IDentifier, i.e. UUID */
+                                        /* If 'fourcc' doesn't equal 'uuid', ignore this field. */
+} lsmash_box_type_t;
+
+#define LSMASH_BOX_TYPE_INITIALIZER { 0x00000000, { 0x00000000, { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } } }
+#define LSMASH_BOX_TYPE_UNSPECIFIED static_lsmash_box_type_unspecified
+static const lsmash_box_type_t static_lsmash_box_type_unspecified = LSMASH_BOX_TYPE_INITIALIZER;
+
+/* Return extended box type that consists of combination of given FourCC and 12-byte ID. */
+lsmash_extended_box_type_t lsmash_form_extended_box_type( uint32_t fourcc, const uint8_t id[12] );
+
+/* Return box type that consists of combination of given compact and extended box type. */
+lsmash_box_type_t lsmash_form_box_type( lsmash_compact_box_type_t type, lsmash_extended_box_type_t user );
+
+#define LSMASH_ISO_BOX_TYPE_INITIALIZER( x )  { x, { x, { 0x00, 0x11, 0x00, 0x10, 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71 } } }
+#define LSMASH_QTFF_BOX_TYPE_INITIALIZER( x ) { x, { x, { 0x0F, 0x11, 0x4D, 0xA5, 0xBF, 0x4E, 0xF2, 0xC4, 0x8C, 0x6A, 0xA1, 0x1E } } }
+lsmash_box_type_t lsmash_form_iso_box_type( lsmash_compact_box_type_t type );
+lsmash_box_type_t lsmash_form_qtff_box_type( lsmash_compact_box_type_t type );
+
+/* Return 1 if the both box types are identical. Otherwise return 0. */
+int lsmash_check_box_type_identical( lsmash_box_type_t a, lsmash_box_type_t b );
+
+/* Return 1 if the box type is specified. Otherwise, i.e. LSMASH_BOX_TYPE_UNSPECIFIED, return 0. */
+int lsmash_check_box_type_specified( lsmash_box_type_t *box_type );
+
+/****************************************************************************
  * Summary of Stream Configuration
  *   This is L-SMASH's original structure.
  ****************************************************************************/
@@ -86,175 +134,185 @@ typedef enum
     LSMASH_SUMMARY_TYPE_AUDIO,
 } lsmash_summary_type;
 
-/* CODEC identifiers */
-typedef enum
-{
-    /* Audio Type */
-    ISOM_CODEC_TYPE_AC_3_AUDIO  = LSMASH_4CC( 'a', 'c', '-', '3' ),   /* AC-3 audio */
-    ISOM_CODEC_TYPE_ALAC_AUDIO  = LSMASH_4CC( 'a', 'l', 'a', 'c' ),   /* Apple lossless audio codec */
-    ISOM_CODEC_TYPE_DRA1_AUDIO  = LSMASH_4CC( 'd', 'r', 'a', '1' ),   /* DRA Audio */
-    ISOM_CODEC_TYPE_DTSC_AUDIO  = LSMASH_4CC( 'd', 't', 's', 'c' ),   /* DTS Coherent Acoustics audio */
-    ISOM_CODEC_TYPE_DTSH_AUDIO  = LSMASH_4CC( 'd', 't', 's', 'h' ),   /* DTS-HD High Resolution Audio */
-    ISOM_CODEC_TYPE_DTSL_AUDIO  = LSMASH_4CC( 'd', 't', 's', 'l' ),   /* DTS-HD Master Audio */
-    ISOM_CODEC_TYPE_DTSE_AUDIO  = LSMASH_4CC( 'd', 't', 's', 'e' ),   /* DTS Express low bit rate audio, also known as DTS LBR */
-    ISOM_CODEC_TYPE_EC_3_AUDIO  = LSMASH_4CC( 'e', 'c', '-', '3' ),   /* Enhanced AC-3 audio */
-    ISOM_CODEC_TYPE_ENCA_AUDIO  = LSMASH_4CC( 'e', 'n', 'c', 'a' ),   /* Encrypted/Protected audio */
-    ISOM_CODEC_TYPE_G719_AUDIO  = LSMASH_4CC( 'g', '7', '1', '9' ),   /* ITU-T Recommendation G.719 (2008) */
-    ISOM_CODEC_TYPE_G726_AUDIO  = LSMASH_4CC( 'g', '7', '2', '6' ),   /* ITU-T Recommendation G.726 (1990) */
-    ISOM_CODEC_TYPE_M4AE_AUDIO  = LSMASH_4CC( 'm', '4', 'a', 'e' ),   /* MPEG-4 Audio Enhancement */
-    ISOM_CODEC_TYPE_MLPA_AUDIO  = LSMASH_4CC( 'm', 'l', 'p', 'a' ),   /* MLP Audio */
-    ISOM_CODEC_TYPE_MP4A_AUDIO  = LSMASH_4CC( 'm', 'p', '4', 'a' ),   /* MPEG-4 Audio */
-    ISOM_CODEC_TYPE_RAW_AUDIO   = LSMASH_4CC( 'r', 'a', 'w', ' ' ),   /* Uncompressed audio */
-    ISOM_CODEC_TYPE_SAMR_AUDIO  = LSMASH_4CC( 's', 'a', 'm', 'r' ),   /* Narrowband AMR voice */
-    ISOM_CODEC_TYPE_SAWB_AUDIO  = LSMASH_4CC( 's', 'a', 'w', 'b' ),   /* Wideband AMR voice */
-    ISOM_CODEC_TYPE_SAWP_AUDIO  = LSMASH_4CC( 's', 'a', 'w', 'p' ),   /* Extended AMR-WB (AMR-WB+) */
-    ISOM_CODEC_TYPE_SEVC_AUDIO  = LSMASH_4CC( 's', 'e', 'v', 'c' ),   /* EVRC Voice */
-    ISOM_CODEC_TYPE_SQCP_AUDIO  = LSMASH_4CC( 's', 'q', 'c', 'p' ),   /* 13K Voice */
-    ISOM_CODEC_TYPE_SSMV_AUDIO  = LSMASH_4CC( 's', 's', 'm', 'v' ),   /* SMV Voice */
-    ISOM_CODEC_TYPE_TWOS_AUDIO  = LSMASH_4CC( 't', 'w', 'o', 's' ),   /* Uncompressed 16-bit audio */
+typedef lsmash_box_type_t lsmash_codec_type_t;
 
-    QT_CODEC_TYPE_23NI_AUDIO    = LSMASH_4CC( '2', '3', 'n', 'i' ),   /* 32-bit little endian integer uncompressed */
-    QT_CODEC_TYPE_MAC3_AUDIO    = LSMASH_4CC( 'M', 'A', 'C', '3' ),   /* MACE 3:1 */
-    QT_CODEC_TYPE_MAC6_AUDIO    = LSMASH_4CC( 'M', 'A', 'C', '6' ),   /* MACE 6:1 */
-    QT_CODEC_TYPE_NONE_AUDIO    = LSMASH_4CC( 'N', 'O', 'N', 'E' ),   /* either 'raw ' or 'twos' */
-    QT_CODEC_TYPE_QDM2_AUDIO    = LSMASH_4CC( 'Q', 'D', 'M', '2' ),   /* Qdesign music 2 */
-    QT_CODEC_TYPE_QDMC_AUDIO    = LSMASH_4CC( 'Q', 'D', 'M', 'C' ),   /* Qdesign music 1 */
-    QT_CODEC_TYPE_QCLP_AUDIO    = LSMASH_4CC( 'Q', 'c', 'l', 'p' ),   /* Qualcomm PureVoice */
-    QT_CODEC_TYPE_AC_3_AUDIO    = LSMASH_4CC( 'a', 'c', '-', '3' ),   /* Digital Audio Compression Standard (AC-3, Enhanced AC-3) */
-    QT_CODEC_TYPE_AGSM_AUDIO    = LSMASH_4CC( 'a', 'g', 's', 'm' ),   /* GSM */
-    QT_CODEC_TYPE_ALAC_AUDIO    = LSMASH_4CC( 'a', 'l', 'a', 'c' ),   /* Apple lossless audio codec */
-    QT_CODEC_TYPE_ALAW_AUDIO    = LSMASH_4CC( 'a', 'l', 'a', 'w' ),   /* a-Law 2:1 */
-    QT_CODEC_TYPE_CDX2_AUDIO    = LSMASH_4CC( 'c', 'd', 'x', '2' ),   /* CD/XA 2:1 */
-    QT_CODEC_TYPE_CDX4_AUDIO    = LSMASH_4CC( 'c', 'd', 'x', '4' ),   /* CD/XA 4:1 */
-    QT_CODEC_TYPE_DVCA_AUDIO    = LSMASH_4CC( 'd', 'v', 'c', 'a' ),   /* DV Audio */
-    QT_CODEC_TYPE_DVI_AUDIO     = LSMASH_4CC( 'd', 'v', 'i', ' ' ),   /* DVI (as used in RTP, 4:1 compression) */
-    QT_CODEC_TYPE_FL32_AUDIO    = LSMASH_4CC( 'f', 'l', '3', '2' ),   /* 32-bit float */
-    QT_CODEC_TYPE_FL64_AUDIO    = LSMASH_4CC( 'f', 'l', '6', '4' ),   /* 64-bit float */
-    QT_CODEC_TYPE_IMA4_AUDIO    = LSMASH_4CC( 'i', 'm', 'a', '4' ),   /* IMA (International Multimedia Assocation, defunct, 4:1) */
-    QT_CODEC_TYPE_IN24_AUDIO    = LSMASH_4CC( 'i', 'n', '2', '4' ),   /* 24-bit integer uncompressed */
-    QT_CODEC_TYPE_IN32_AUDIO    = LSMASH_4CC( 'i', 'n', '3', '2' ),   /* 32-bit integer uncompressed */
-    QT_CODEC_TYPE_LPCM_AUDIO    = LSMASH_4CC( 'l', 'p', 'c', 'm' ),   /* Uncompressed audio (various integer and float formats) */
-    QT_CODEC_TYPE_MP4A_AUDIO    = LSMASH_4CC( 'm', 'p', '4', 'a' ),   /* MPEG-4 Audio */
-    QT_CODEC_TYPE_RAW_AUDIO     = LSMASH_4CC( 'r', 'a', 'w', ' ' ),   /* 8-bit offset-binary uncompressed */
-    QT_CODEC_TYPE_SOWT_AUDIO    = LSMASH_4CC( 's', 'o', 'w', 't' ),   /* 16-bit little endian uncompressed */
-    QT_CODEC_TYPE_TWOS_AUDIO    = LSMASH_4CC( 't', 'w', 'o', 's' ),   /* 8-bit or 16-bit big endian uncompressed */
-    QT_CODEC_TYPE_ULAW_AUDIO    = LSMASH_4CC( 'u', 'l', 'a', 'w' ),   /* uLaw 2:1 */
-    QT_CODEC_TYPE_VDVA_AUDIO    = LSMASH_4CC( 'v', 'd', 'v', 'a' ),   /* DV audio (variable duration per video frame) */
-    QT_CODEC_TYPE_FULLMP3_AUDIO = LSMASH_4CC( '.', 'm', 'p', '3' ),   /* MPEG-1 layer 3, CBR & VBR (QT4.1 and later) */
-    QT_CODEC_TYPE_MP3_AUDIO     = 0x6D730055,                         /* MPEG-1 layer 3, CBR only (pre-QT4.1) */
-    QT_CODEC_TYPE_ADPCM2_AUDIO  = 0x6D730002,                         /* Microsoft ADPCM - ACM code 2 */
-    QT_CODEC_TYPE_ADPCM17_AUDIO = 0x6D730011,                         /* DVI/Intel IMA ADPCM - ACM code 17 */
-    QT_CODEC_TYPE_GSM49_AUDIO   = 0x6D730031,                         /* Microsoft GSM 6.10 - ACM code 49 */
-    QT_CODEC_TYPE_NOT_SPECIFIED = 0x00000000,                         /* either 'raw ' or 'twos' */
+#define LSMASH_CODEC_TYPE_INITIALIZER LSMASH_BOX_TYPE_INITIALIZER
+#define LSMASH_CODEC_TYPE_UNSPECIFIED ((lsmash_codec_type_t)static_lsmash_box_type_unspecified)
 
-    /* Video Type */
-    ISOM_CODEC_TYPE_AVC1_VIDEO  = LSMASH_4CC( 'a', 'v', 'c', '1' ),   /* Advanced Video Coding */
-    ISOM_CODEC_TYPE_AVC2_VIDEO  = LSMASH_4CC( 'a', 'v', 'c', '2' ),   /* Advanced Video Coding */
-    ISOM_CODEC_TYPE_AVCP_VIDEO  = LSMASH_4CC( 'a', 'v', 'c', 'p' ),   /* Advanced Video Coding Parameters */
-    ISOM_CODEC_TYPE_DRAC_VIDEO  = LSMASH_4CC( 'd', 'r', 'a', 'c' ),   /* Dirac Video Coder */
-    ISOM_CODEC_TYPE_ENCV_VIDEO  = LSMASH_4CC( 'e', 'n', 'c', 'v' ),   /* Encrypted/protected video */
-    ISOM_CODEC_TYPE_MJP2_VIDEO  = LSMASH_4CC( 'm', 'j', 'p', '2' ),   /* Motion JPEG 2000 */
-    ISOM_CODEC_TYPE_MP4V_VIDEO  = LSMASH_4CC( 'm', 'p', '4', 'v' ),   /* MPEG-4 Visual */
-    ISOM_CODEC_TYPE_MVC1_VIDEO  = LSMASH_4CC( 'm', 'v', 'c', '1' ),   /* Multiview coding */
-    ISOM_CODEC_TYPE_MVC2_VIDEO  = LSMASH_4CC( 'm', 'v', 'c', '2' ),   /* Multiview coding */
-    ISOM_CODEC_TYPE_S263_VIDEO  = LSMASH_4CC( 's', '2', '6', '3' ),   /* ITU H.263 video (3GPP format) */
-    ISOM_CODEC_TYPE_SVC1_VIDEO  = LSMASH_4CC( 's', 'v', 'c', '1' ),   /* Scalable Video Coding */
-    ISOM_CODEC_TYPE_VC_1_VIDEO  = LSMASH_4CC( 'v', 'c', '-', '1' ),   /* SMPTE VC-1 */
+/* Return 1 if the both CODEC identifiers are identical. Otherwise return 0. */
+int lsmash_check_codec_type_identical( lsmash_codec_type_t a, lsmash_codec_type_t b );
 
-    QT_CODEC_TYPE_CFHD_VIDEO    = LSMASH_4CC( 'C', 'F', 'H', 'D' ),   /* CineForm High-Definition (HD) wavelet codec */
-    QT_CODEC_TYPE_DV10_VIDEO    = LSMASH_4CC( 'D', 'V', '1', '0' ),   /* Digital Voodoo 10 bit Uncompressed 4:2:2 codec */
-    QT_CODEC_TYPE_DVOO_VIDEO    = LSMASH_4CC( 'D', 'V', 'O', 'O' ),   /* Digital Voodoo 8 bit Uncompressed 4:2:2 codec */
-    QT_CODEC_TYPE_DVOR_VIDEO    = LSMASH_4CC( 'D', 'V', 'O', 'R' ),   /* Digital Voodoo intermediate raw */
-    QT_CODEC_TYPE_DVTV_VIDEO    = LSMASH_4CC( 'D', 'V', 'T', 'V' ),   /* Digital Voodoo intermediate 2vuy */
-    QT_CODEC_TYPE_DVVT_VIDEO    = LSMASH_4CC( 'D', 'V', 'V', 'T' ),   /* Digital Voodoo intermediate v210 */
-    QT_CODEC_TYPE_HD10_VIDEO    = LSMASH_4CC( 'H', 'D', '1', '0' ),   /* Digital Voodoo 10 bit Uncompressed 4:2:2 HD codec */
-    QT_CODEC_TYPE_M105_VIDEO    = LSMASH_4CC( 'M', '1', '0', '5' ),   /* Internal format of video data supported by Matrox hardware; pixel organization is proprietary*/
-    QT_CODEC_TYPE_PNTG_VIDEO    = LSMASH_4CC( 'P', 'N', 'T', 'G' ),   /* Apple MacPaint image format */
-    QT_CODEC_TYPE_SVQ1_VIDEO    = LSMASH_4CC( 'S', 'V', 'Q', '1' ),   /* Sorenson Video 1 video */
-    QT_CODEC_TYPE_SVQ3_VIDEO    = LSMASH_4CC( 'S', 'V', 'Q', '3' ),   /* Sorenson Video 3 video */
-    QT_CODEC_TYPE_SHR0_VIDEO    = LSMASH_4CC( 'S', 'h', 'r', '0' ),   /* Generic SheerVideo codec */
-    QT_CODEC_TYPE_SHR1_VIDEO    = LSMASH_4CC( 'S', 'h', 'r', '1' ),   /* SheerVideo RGB[A] 8b - at 8 bits/channel */
-    QT_CODEC_TYPE_SHR2_VIDEO    = LSMASH_4CC( 'S', 'h', 'r', '2' ),   /* SheerVideo Y'CbCr[A] 8bv 4:4:4[:4] - at 8 bits/channel, in ITU-R BT.601-4 video range */
-    QT_CODEC_TYPE_SHR3_VIDEO    = LSMASH_4CC( 'S', 'h', 'r', '3' ),   /* SheerVideo Y'CbCr 8bv 4:2:2 - 2:1 chroma subsampling, at 8 bits/channel, in ITU-R BT.601-4 video range */
-    QT_CODEC_TYPE_SHR4_VIDEO    = LSMASH_4CC( 'S', 'h', 'r', '4' ),   /* SheerVideo Y'CbCr 8bw 4:2:2 - 2:1 chroma subsampling, at 8 bits/channel, with full-range luma and wide-range two's-complement chroma */
-    QT_CODEC_TYPE_WRLE_VIDEO    = LSMASH_4CC( 'W', 'R', 'L', 'E' ),   /* Windows BMP image format */
-    QT_CODEC_TYPE_APCH_VIDEO    = LSMASH_4CC( 'a', 'p', 'c', 'h' ),   /* Apple ProRes 422 High Quality */
-    QT_CODEC_TYPE_APCN_VIDEO    = LSMASH_4CC( 'a', 'p', 'c', 'n' ),   /* Apple ProRes 422 Standard Definition */
-    QT_CODEC_TYPE_APCS_VIDEO    = LSMASH_4CC( 'a', 'p', 'c', 's' ),   /* Apple ProRes 422 LT */
-    QT_CODEC_TYPE_APCO_VIDEO    = LSMASH_4CC( 'a', 'p', 'c', 'o' ),   /* Apple ProRes 422 Proxy */
-    QT_CODEC_TYPE_AP4H_VIDEO    = LSMASH_4CC( 'a', 'p', '4', 'h' ),   /* Apple ProRes 4444 */
-    QT_CODEC_TYPE_CIVD_VIDEO    = LSMASH_4CC( 'c', 'i', 'v', 'd' ),   /* Cinepak Video */
-    QT_CODEC_TYPE_DRAC_VIDEO    = LSMASH_4CC( 'd', 'r', 'a', 'c' ),   /* Dirac Video Coder */
-    QT_CODEC_TYPE_DVC_VIDEO     = LSMASH_4CC( 'd', 'v', 'c', ' ' ),   /* DV NTSC format */
-    QT_CODEC_TYPE_DVCP_VIDEO    = LSMASH_4CC( 'd', 'v', 'c', 'p' ),   /* DV PAL format */
-    QT_CODEC_TYPE_DVPP_VIDEO    = LSMASH_4CC( 'd', 'v', 'p', 'p' ),   /* Panasonic DVCPro PAL format */
-    QT_CODEC_TYPE_DV5N_VIDEO    = LSMASH_4CC( 'd', 'v', '5', 'n' ),   /* Panasonic DVCPro-50 NTSC format */
-    QT_CODEC_TYPE_DV5P_VIDEO    = LSMASH_4CC( 'd', 'v', '5', 'p' ),   /* Panasonic DVCPro-50 PAL format */
-    QT_CODEC_TYPE_DVH2_VIDEO    = LSMASH_4CC( 'd', 'v', 'h', '2' ),   /* Panasonic DVCPro-HD 1080p25 format */
-    QT_CODEC_TYPE_DVH3_VIDEO    = LSMASH_4CC( 'd', 'v', 'h', '3' ),   /* Panasonic DVCPro-HD 1080p30 format */
-    QT_CODEC_TYPE_DVH5_VIDEO    = LSMASH_4CC( 'd', 'v', 'h', '5' ),   /* Panasonic DVCPro-HD 1080i50 format */
-    QT_CODEC_TYPE_DVH6_VIDEO    = LSMASH_4CC( 'd', 'v', 'h', '6' ),   /* Panasonic DVCPro-HD 1080i60 format */
-    QT_CODEC_TYPE_DVHP_VIDEO    = LSMASH_4CC( 'd', 'v', 'h', 'p' ),   /* Panasonic DVCPro-HD 720p60 format */
-    QT_CODEC_TYPE_DVHQ_VIDEO    = LSMASH_4CC( 'd', 'v', 'h', 'q' ),   /* Panasonic DVCPro-HD 720p50 format */
-    QT_CODEC_TYPE_FLIC_VIDEO    = LSMASH_4CC( 'f', 'l', 'i', 'c' ),   /* Autodesk FLIC animation format */
-    QT_CODEC_TYPE_GIF_VIDEO     = LSMASH_4CC( 'g', 'i', 'f', ' ' ),   /* GIF image format */
-    QT_CODEC_TYPE_H261_VIDEO    = LSMASH_4CC( 'h', '2', '6', '1' ),   /* ITU H.261 video */
-    QT_CODEC_TYPE_H263_VIDEO    = LSMASH_4CC( 'h', '2', '6', '3' ),   /* ITU H.263 video */
-    QT_CODEC_TYPE_JPEG_VIDEO    = LSMASH_4CC( 'j', 'p', 'e', 'g' ),   /* JPEG image format */
-    QT_CODEC_TYPE_MJPA_VIDEO    = LSMASH_4CC( 'm', 'j', 'p', 'a' ),   /* Motion-JPEG (format A) */
-    QT_CODEC_TYPE_MJPB_VIDEO    = LSMASH_4CC( 'm', 'j', 'p', 'b' ),   /* Motion-JPEG (format B) */
-    QT_CODEC_TYPE_PNG_VIDEO     = LSMASH_4CC( 'p', 'n', 'g', ' ' ),   /* W3C Portable Network Graphics (PNG) */
-    QT_CODEC_TYPE_RAW_VIDEO     = LSMASH_4CC( 'r', 'a', 'w', ' ' ),   /* Uncompressed RGB */
-    QT_CODEC_TYPE_RLE_VIDEO     = LSMASH_4CC( 'r', 'l', 'e', ' ' ),   /* Apple animation codec */
-    QT_CODEC_TYPE_RPZA_VIDEO    = LSMASH_4CC( 'r', 'p', 'z', 'a' ),   /* Apple simple video 'road pizza' compression */
-    QT_CODEC_TYPE_TGA_VIDEO     = LSMASH_4CC( 't', 'g', 'a', ' ' ),   /* Truvision Targa video format */
-    QT_CODEC_TYPE_TIFF_VIDEO    = LSMASH_4CC( 't', 'i', 'f', 'f' ),   /* Tagged Image File Format (Adobe) */
-    QT_CODEC_TYPE_ULRA_VIDEO    = LSMASH_4CC( 'U', 'L', 'R', 'A' ),   /* Ut Video RGBA 4:4:4:4 8bit full-range */
-    QT_CODEC_TYPE_ULRG_VIDEO    = LSMASH_4CC( 'U', 'L', 'R', 'G' ),   /* Ut Video RGB 4:4:4 8bit full-range */
-    QT_CODEC_TYPE_ULY0_VIDEO    = LSMASH_4CC( 'U', 'L', 'Y', '0' ),   /* Ut Video YCbCr 4:2:0 8bit limited */
-    QT_CODEC_TYPE_ULY2_VIDEO    = LSMASH_4CC( 'U', 'L', 'Y', '2' ),   /* Ut Video YCbCr 4:2:2 8bit limited */
-    QT_CODEC_TYPE_V210_VIDEO    = LSMASH_4CC( 'v', '2', '1', '0' ),   /* Uncompressed Y'CbCr, 10-bit-per-component 4:2:2 */
-    QT_CODEC_TYPE_V216_VIDEO    = LSMASH_4CC( 'v', '2', '1', '6' ),   /* Uncompressed Y'CbCr, 10, 12, 14, or 16-bit-per-component 4:2:2 */
-    QT_CODEC_TYPE_V308_VIDEO    = LSMASH_4CC( 'v', '3', '0', '8' ),   /* Uncompressed Y'CbCr, 8-bit-per-component 4:4:4 */
-    QT_CODEC_TYPE_V408_VIDEO    = LSMASH_4CC( 'v', '4', '0', '8' ),   /* Uncompressed Y'CbCr, 8-bit-per-component 4:4:4:4 */
-    QT_CODEC_TYPE_V410_VIDEO    = LSMASH_4CC( 'v', '4', '1', '0' ),   /* Uncompressed Y'CbCr, 10-bit-per-component 4:4:4 */
-    QT_CODEC_TYPE_YUV2_VIDEO    = LSMASH_4CC( 'y', 'u', 'v', '2' ),   /* Uncompressed Y'CbCr, 8-bit-per-component 4:2:2 */
+#define DEFINE_ISOM_CODEC_TYPE( BOX_TYPE_NAME, BOX_TYPE_FOURCC ) \
+    static const lsmash_codec_type_t BOX_TYPE_NAME = LSMASH_ISO_BOX_TYPE_INITIALIZER( BOX_TYPE_FOURCC )
+#define DEFINE_QTFF_CODEC_TYPE( BOX_TYPE_NAME, BOX_TYPE_FOURCC ) \
+    static const lsmash_codec_type_t BOX_TYPE_NAME = LSMASH_QTFF_BOX_TYPE_INITIALIZER( BOX_TYPE_FOURCC )
 
-    /* Text Type */
-    ISOM_CODEC_TYPE_ENCT_TEXT   = LSMASH_4CC( 'e', 'n', 'c', 't' ),   /* Encrypted Text */
-    ISOM_CODEC_TYPE_TX3G_TEXT   = LSMASH_4CC( 't', 'x', '3', 'g' ),   /* Timed Text stream */
+/* Audio CODEC identifiers */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_AC_3_AUDIO,  LSMASH_4CC( 'a', 'c', '-', '3' ) );    /* AC-3 audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_ALAC_AUDIO,  LSMASH_4CC( 'a', 'l', 'a', 'c' ) );    /* Apple lossless audio codec */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_DRA1_AUDIO,  LSMASH_4CC( 'd', 'r', 'a', '1' ) );    /* DRA Audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_DTSC_AUDIO,  LSMASH_4CC( 'd', 't', 's', 'c' ) );    /* DTS Coherent Acoustics audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_DTSH_AUDIO,  LSMASH_4CC( 'd', 't', 's', 'h' ) );    /* DTS-HD High Resolution Audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_DTSL_AUDIO,  LSMASH_4CC( 'd', 't', 's', 'l' ) );    /* DTS-HD Master Audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_DTSE_AUDIO,  LSMASH_4CC( 'd', 't', 's', 'e' ) );    /* DTS Express low bit rate audio, also known as DTS LBR */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_EC_3_AUDIO,  LSMASH_4CC( 'e', 'c', '-', '3' ) );    /* Enhanced AC-3 audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_ENCA_AUDIO,  LSMASH_4CC( 'e', 'n', 'c', 'a' ) );    /* Encrypted/Protected audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_G719_AUDIO,  LSMASH_4CC( 'g', '7', '1', '9' ) );    /* ITU-T Recommendation G.719 (2008) ); */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_G726_AUDIO,  LSMASH_4CC( 'g', '7', '2', '6' ) );    /* ITU-T Recommendation G.726 (1990) ); */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_M4AE_AUDIO,  LSMASH_4CC( 'm', '4', 'a', 'e' ) );    /* MPEG-4 Audio Enhancement */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MLPA_AUDIO,  LSMASH_4CC( 'm', 'l', 'p', 'a' ) );    /* MLP Audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MP4A_AUDIO,  LSMASH_4CC( 'm', 'p', '4', 'a' ) );    /* MPEG-4 Audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_RAW_AUDIO,   LSMASH_4CC( 'r', 'a', 'w', ' ' ) );    /* Uncompressed audio */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SAMR_AUDIO,  LSMASH_4CC( 's', 'a', 'm', 'r' ) );    /* Narrowband AMR voice */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SAWB_AUDIO,  LSMASH_4CC( 's', 'a', 'w', 'b' ) );    /* Wideband AMR voice */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SAWP_AUDIO,  LSMASH_4CC( 's', 'a', 'w', 'p' ) );    /* Extended AMR-WB (AMR-WB+) ); */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SEVC_AUDIO,  LSMASH_4CC( 's', 'e', 'v', 'c' ) );    /* EVRC Voice */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SQCP_AUDIO,  LSMASH_4CC( 's', 'q', 'c', 'p' ) );    /* 13K Voice */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SSMV_AUDIO,  LSMASH_4CC( 's', 's', 'm', 'v' ) );    /* SMV Voice */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_TWOS_AUDIO,  LSMASH_4CC( 't', 'w', 'o', 's' ) );    /* Uncompressed 16-bit audio */
 
-    QT_CODEC_TYPE_TEXT_TEXT     = LSMASH_4CC( 't', 'e', 'x', 't' ),   /* QuickTime Text Media */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_23NI_AUDIO,    LSMASH_4CC( '2', '3', 'n', 'i' ) );    /* 32-bit little endian integer uncompressed */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_MAC3_AUDIO,    LSMASH_4CC( 'M', 'A', 'C', '3' ) );    /* MACE 3:1 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_MAC6_AUDIO,    LSMASH_4CC( 'M', 'A', 'C', '6' ) );    /* MACE 6:1 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_NONE_AUDIO,    LSMASH_4CC( 'N', 'O', 'N', 'E' ) );    /* either 'raw ' or 'twos' */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_QDM2_AUDIO,    LSMASH_4CC( 'Q', 'D', 'M', '2' ) );    /* Qdesign music 2 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_QDMC_AUDIO,    LSMASH_4CC( 'Q', 'D', 'M', 'C' ) );    /* Qdesign music 1 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_QCLP_AUDIO,    LSMASH_4CC( 'Q', 'c', 'l', 'p' ) );    /* Qualcomm PureVoice */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_AC_3_AUDIO,    LSMASH_4CC( 'a', 'c', '-', '3' ) );    /* Digital Audio Compression Standard (AC-3, Enhanced AC-3) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_AGSM_AUDIO,    LSMASH_4CC( 'a', 'g', 's', 'm' ) );    /* GSM */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ALAC_AUDIO,    LSMASH_4CC( 'a', 'l', 'a', 'c' ) );    /* Apple lossless audio codec */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ALAW_AUDIO,    LSMASH_4CC( 'a', 'l', 'a', 'w' ) );    /* a-Law 2:1 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_CDX2_AUDIO,    LSMASH_4CC( 'c', 'd', 'x', '2' ) );    /* CD/XA 2:1 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_CDX4_AUDIO,    LSMASH_4CC( 'c', 'd', 'x', '4' ) );    /* CD/XA 4:1 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVCA_AUDIO,    LSMASH_4CC( 'd', 'v', 'c', 'a' ) );    /* DV Audio */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVI_AUDIO,     LSMASH_4CC( 'd', 'v', 'i', ' ' ) );    /* DVI (as used in RTP, 4:1 compression) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_FL32_AUDIO,    LSMASH_4CC( 'f', 'l', '3', '2' ) );    /* 32-bit float */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_FL64_AUDIO,    LSMASH_4CC( 'f', 'l', '6', '4' ) );    /* 64-bit float */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_IMA4_AUDIO,    LSMASH_4CC( 'i', 'm', 'a', '4' ) );    /* IMA (International Multimedia Assocation, defunct, 4:1) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_IN24_AUDIO,    LSMASH_4CC( 'i', 'n', '2', '4' ) );    /* 24-bit integer uncompressed */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_IN32_AUDIO,    LSMASH_4CC( 'i', 'n', '3', '2' ) );    /* 32-bit integer uncompressed */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_LPCM_AUDIO,    LSMASH_4CC( 'l', 'p', 'c', 'm' ) );    /* Uncompressed audio (various integer and float formats) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_MP4A_AUDIO,    LSMASH_4CC( 'm', 'p', '4', 'a' ) );    /* MPEG-4 Audio */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_RAW_AUDIO,     LSMASH_4CC( 'r', 'a', 'w', ' ' ) );    /* 8-bit offset-binary uncompressed */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SOWT_AUDIO,    LSMASH_4CC( 's', 'o', 'w', 't' ) );    /* 16-bit little endian uncompressed */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_TWOS_AUDIO,    LSMASH_4CC( 't', 'w', 'o', 's' ) );    /* 8-bit or 16-bit big endian uncompressed */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ULAW_AUDIO,    LSMASH_4CC( 'u', 'l', 'a', 'w' ) );    /* uLaw 2:1 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_VDVA_AUDIO,    LSMASH_4CC( 'v', 'd', 'v', 'a' ) );    /* DV audio (variable duration per video frame) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_FULLMP3_AUDIO, LSMASH_4CC( '.', 'm', 'p', '3' ) );    /* MPEG-1 layer 3, CBR & VBR (QT4.1 and later) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_MP3_AUDIO,     0x6D730055 );                          /* MPEG-1 layer 3, CBR only (pre-QT4.1) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ADPCM2_AUDIO,  0x6D730002 );                          /* Microsoft ADPCM - ACM code 2 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ADPCM17_AUDIO, 0x6D730011 );                          /* DVI/Intel IMA ADPCM - ACM code 17 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_GSM49_AUDIO,   0x6D730031 );                          /* Microsoft GSM 6.10 - ACM code 49 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_NOT_SPECIFIED, 0x00000000 );                          /* either 'raw ' or 'twos' */
 
-    /* Hint Type */
-    ISOM_CODEC_TYPE_FDP_HINT    = LSMASH_4CC( 'f', 'd', 'p', ' ' ),   /* File delivery hints */
-    ISOM_CODEC_TYPE_M2TS_HINT   = LSMASH_4CC( 'm', '2', 't', 's' ),   /* MPEG-2 transport stream for DMB */
-    ISOM_CODEC_TYPE_PM2T_HINT   = LSMASH_4CC( 'p', 'm', '2', 't' ),   /* Protected MPEG-2 Transport */
-    ISOM_CODEC_TYPE_PRTP_HINT   = LSMASH_4CC( 'p', 'r', 't', 'p' ),   /* Protected RTP Reception */
-    ISOM_CODEC_TYPE_RM2T_HINT   = LSMASH_4CC( 'r', 'm', '2', 't' ),   /* MPEG-2 Transport Reception */
-    ISOM_CODEC_TYPE_RRTP_HINT   = LSMASH_4CC( 'r', 'r', 't', 'p' ),   /* RTP reception */
-    ISOM_CODEC_TYPE_RSRP_HINT   = LSMASH_4CC( 'r', 's', 'r', 'p' ),   /* SRTP Reception */
-    ISOM_CODEC_TYPE_RTP_HINT    = LSMASH_4CC( 'r', 't', 'p', ' ' ),   /* RTP Hints */
-    ISOM_CODEC_TYPE_SM2T_HINT   = LSMASH_4CC( 's', 'm', '2', 't' ),   /* MPEG-2 Transport Server */
-    ISOM_CODEC_TYPE_SRTP_HINT   = LSMASH_4CC( 's', 'r', 't', 'p' ),   /* SRTP Hints */
+/* Video CODEC identifiers */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_AVC1_VIDEO,  LSMASH_4CC( 'a', 'v', 'c', '1' ) );    /* Advanced Video Coding */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_AVC2_VIDEO,  LSMASH_4CC( 'a', 'v', 'c', '2' ) );    /* Advanced Video Coding */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_AVCP_VIDEO,  LSMASH_4CC( 'a', 'v', 'c', 'p' ) );    /* Advanced Video Coding Parameters */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_DRAC_VIDEO,  LSMASH_4CC( 'd', 'r', 'a', 'c' ) );    /* Dirac Video Coder */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_ENCV_VIDEO,  LSMASH_4CC( 'e', 'n', 'c', 'v' ) );    /* Encrypted/protected video */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MJP2_VIDEO,  LSMASH_4CC( 'm', 'j', 'p', '2' ) );    /* Motion JPEG 2000 */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MP4V_VIDEO,  LSMASH_4CC( 'm', 'p', '4', 'v' ) );    /* MPEG-4 Visual */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MVC1_VIDEO,  LSMASH_4CC( 'm', 'v', 'c', '1' ) );    /* Multiview coding */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MVC2_VIDEO,  LSMASH_4CC( 'm', 'v', 'c', '2' ) );    /* Multiview coding */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_S263_VIDEO,  LSMASH_4CC( 's', '2', '6', '3' ) );    /* ITU H.263 video (3GPP format) */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SVC1_VIDEO,  LSMASH_4CC( 's', 'v', 'c', '1' ) );    /* Scalable Video Coding */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_VC_1_VIDEO,  LSMASH_4CC( 'v', 'c', '-', '1' ) );    /* SMPTE VC-1 */
 
-    /* Metadata Type */
-    ISOM_CODEC_TYPE_IXSE_META   = LSMASH_4CC( 'i', 'x', 's', 'e' ),   /* DVB Track Level Index Track */
-    ISOM_CODEC_TYPE_METT_META   = LSMASH_4CC( 'm', 'e', 't', 't' ),   /* Text timed metadata */
-    ISOM_CODEC_TYPE_METX_META   = LSMASH_4CC( 'm', 'e', 't', 'x' ),   /* XML timed metadata */
-    ISOM_CODEC_TYPE_MLIX_META   = LSMASH_4CC( 'm', 'l', 'i', 'x' ),   /* DVB Movie level index track */
-    ISOM_CODEC_TYPE_OKSD_META   = LSMASH_4CC( 'o', 'k', 's', 'd' ),   /* OMA Keys */
-    ISOM_CODEC_TYPE_SVCM_META   = LSMASH_4CC( 's', 'v', 'c', 'M' ),   /* SVC metadata */
-    ISOM_CODEC_TYPE_TEXT_META   = LSMASH_4CC( 't', 'e', 'x', 't' ),   /* Textual meta-data with MIME type */
-    ISOM_CODEC_TYPE_URIM_META   = LSMASH_4CC( 'u', 'r', 'i', 'm' ),   /* URI identified timed metadata */
-    ISOM_CODEC_TYPE_XML_META    = LSMASH_4CC( 'x', 'm', 'l', ' ' ),   /* XML-formatted meta-data */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_CFHD_VIDEO,    LSMASH_4CC( 'C', 'F', 'H', 'D' ) );    /* CineForm High-Definition (HD) wavelet codec */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DV10_VIDEO,    LSMASH_4CC( 'D', 'V', '1', '0' ) );    /* Digital Voodoo 10 bit Uncompressed 4:2:2 codec */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVOO_VIDEO,    LSMASH_4CC( 'D', 'V', 'O', 'O' ) );    /* Digital Voodoo 8 bit Uncompressed 4:2:2 codec */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVOR_VIDEO,    LSMASH_4CC( 'D', 'V', 'O', 'R' ) );    /* Digital Voodoo intermediate raw */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVTV_VIDEO,    LSMASH_4CC( 'D', 'V', 'T', 'V' ) );    /* Digital Voodoo intermediate 2vuy */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVVT_VIDEO,    LSMASH_4CC( 'D', 'V', 'V', 'T' ) );    /* Digital Voodoo intermediate v210 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_HD10_VIDEO,    LSMASH_4CC( 'H', 'D', '1', '0' ) );    /* Digital Voodoo 10 bit Uncompressed 4:2:2 HD codec */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_M105_VIDEO,    LSMASH_4CC( 'M', '1', '0', '5' ) );    /* Internal format of video data supported by Matrox hardware; pixel organization is proprietary*/
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_PNTG_VIDEO,    LSMASH_4CC( 'P', 'N', 'T', 'G' ) );    /* Apple MacPaint image format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SVQ1_VIDEO,    LSMASH_4CC( 'S', 'V', 'Q', '1' ) );    /* Sorenson Video 1 video */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SVQ3_VIDEO,    LSMASH_4CC( 'S', 'V', 'Q', '3' ) );    /* Sorenson Video 3 video */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SHR0_VIDEO,    LSMASH_4CC( 'S', 'h', 'r', '0' ) );    /* Generic SheerVideo codec */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SHR1_VIDEO,    LSMASH_4CC( 'S', 'h', 'r', '1' ) );    /* SheerVideo RGB[A] 8b - at 8 bits/channel */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SHR2_VIDEO,    LSMASH_4CC( 'S', 'h', 'r', '2' ) );    /* SheerVideo Y'CbCr[A] 8bv 4:4:4[:4] - at 8 bits/channel, in ITU-R BT.601-4 video range */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SHR3_VIDEO,    LSMASH_4CC( 'S', 'h', 'r', '3' ) );    /* SheerVideo Y'CbCr 8bv 4:2:2 - 2:1 chroma subsampling, at 8 bits/channel, in ITU-R BT.601-4 video range */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_SHR4_VIDEO,    LSMASH_4CC( 'S', 'h', 'r', '4' ) );    /* SheerVideo Y'CbCr 8bw 4:2:2 - 2:1 chroma subsampling, at 8 bits/channel, with full-range luma and wide-range two's-complement chroma */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_WRLE_VIDEO,    LSMASH_4CC( 'W', 'R', 'L', 'E' ) );    /* Windows BMP image format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_APCH_VIDEO,    LSMASH_4CC( 'a', 'p', 'c', 'h' ) );    /* Apple ProRes 422 High Quality */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_APCN_VIDEO,    LSMASH_4CC( 'a', 'p', 'c', 'n' ) );    /* Apple ProRes 422 Standard Definition */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_APCS_VIDEO,    LSMASH_4CC( 'a', 'p', 'c', 's' ) );    /* Apple ProRes 422 LT */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_APCO_VIDEO,    LSMASH_4CC( 'a', 'p', 'c', 'o' ) );    /* Apple ProRes 422 Proxy */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_AP4H_VIDEO,    LSMASH_4CC( 'a', 'p', '4', 'h' ) );    /* Apple ProRes 4444 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_CIVD_VIDEO,    LSMASH_4CC( 'c', 'i', 'v', 'd' ) );    /* Cinepak Video */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DRAC_VIDEO,    LSMASH_4CC( 'd', 'r', 'a', 'c' ) );    /* Dirac Video Coder */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVC_VIDEO,     LSMASH_4CC( 'd', 'v', 'c', ' ' ) );    /* DV NTSC format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVCP_VIDEO,    LSMASH_4CC( 'd', 'v', 'c', 'p' ) );    /* DV PAL format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVPP_VIDEO,    LSMASH_4CC( 'd', 'v', 'p', 'p' ) );    /* Panasonic DVCPro PAL format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DV5N_VIDEO,    LSMASH_4CC( 'd', 'v', '5', 'n' ) );    /* Panasonic DVCPro-50 NTSC format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DV5P_VIDEO,    LSMASH_4CC( 'd', 'v', '5', 'p' ) );    /* Panasonic DVCPro-50 PAL format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVH2_VIDEO,    LSMASH_4CC( 'd', 'v', 'h', '2' ) );    /* Panasonic DVCPro-HD 1080p25 format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVH3_VIDEO,    LSMASH_4CC( 'd', 'v', 'h', '3' ) );    /* Panasonic DVCPro-HD 1080p30 format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVH5_VIDEO,    LSMASH_4CC( 'd', 'v', 'h', '5' ) );    /* Panasonic DVCPro-HD 1080i50 format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVH6_VIDEO,    LSMASH_4CC( 'd', 'v', 'h', '6' ) );    /* Panasonic DVCPro-HD 1080i60 format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVHP_VIDEO,    LSMASH_4CC( 'd', 'v', 'h', 'p' ) );    /* Panasonic DVCPro-HD 720p60 format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_DVHQ_VIDEO,    LSMASH_4CC( 'd', 'v', 'h', 'q' ) );    /* Panasonic DVCPro-HD 720p50 format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_FLIC_VIDEO,    LSMASH_4CC( 'f', 'l', 'i', 'c' ) );    /* Autodesk FLIC animation format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_GIF_VIDEO,     LSMASH_4CC( 'g', 'i', 'f', ' ' ) );    /* GIF image format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_H261_VIDEO,    LSMASH_4CC( 'h', '2', '6', '1' ) );    /* ITU H.261 video */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_H263_VIDEO,    LSMASH_4CC( 'h', '2', '6', '3' ) );    /* ITU H.263 video */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_JPEG_VIDEO,    LSMASH_4CC( 'j', 'p', 'e', 'g' ) );    /* JPEG image format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_MJPA_VIDEO,    LSMASH_4CC( 'm', 'j', 'p', 'a' ) );    /* Motion-JPEG (format A) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_MJPB_VIDEO,    LSMASH_4CC( 'm', 'j', 'p', 'b' ) );    /* Motion-JPEG (format B) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_PNG_VIDEO,     LSMASH_4CC( 'p', 'n', 'g', ' ' ) );    /* W3C Portable Network Graphics (PNG) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_RAW_VIDEO,     LSMASH_4CC( 'r', 'a', 'w', ' ' ) );    /* Uncompressed RGB */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_RLE_VIDEO,     LSMASH_4CC( 'r', 'l', 'e', ' ' ) );    /* Apple animation codec */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_RPZA_VIDEO,    LSMASH_4CC( 'r', 'p', 'z', 'a' ) );    /* Apple simple video 'road pizza' compression */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_TGA_VIDEO,     LSMASH_4CC( 't', 'g', 'a', ' ' ) );    /* Truvision Targa video format */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_TIFF_VIDEO,    LSMASH_4CC( 't', 'i', 'f', 'f' ) );    /* Tagged Image File Format (Adobe) */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ULRA_VIDEO,    LSMASH_4CC( 'U', 'L', 'R', 'A' ) );    /* Ut Video RGBA 4:4:4:4 8bit full-range */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ULRG_VIDEO,    LSMASH_4CC( 'U', 'L', 'R', 'G' ) );    /* Ut Video RGB 4:4:4 8bit full-range */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ULY0_VIDEO,    LSMASH_4CC( 'U', 'L', 'Y', '0' ) );    /* Ut Video YCbCr 4:2:0 8bit limited */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_ULY2_VIDEO,    LSMASH_4CC( 'U', 'L', 'Y', '2' ) );    /* Ut Video YCbCr 4:2:2 8bit limited */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_V210_VIDEO,    LSMASH_4CC( 'v', '2', '1', '0' ) );    /* Uncompressed Y'CbCr, 10-bit-per-component 4:2:2 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_V216_VIDEO,    LSMASH_4CC( 'v', '2', '1', '6' ) );    /* Uncompressed Y'CbCr, 10, 12, 14, or 16-bit-per-component 4:2:2 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_V308_VIDEO,    LSMASH_4CC( 'v', '3', '0', '8' ) );    /* Uncompressed Y'CbCr, 8-bit-per-component 4:4:4 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_V408_VIDEO,    LSMASH_4CC( 'v', '4', '0', '8' ) );    /* Uncompressed Y'CbCr, 8-bit-per-component 4:4:4:4 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_V410_VIDEO,    LSMASH_4CC( 'v', '4', '1', '0' ) );    /* Uncompressed Y'CbCr, 10-bit-per-component 4:4:4 */
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_YUV2_VIDEO,    LSMASH_4CC( 'y', 'u', 'v', '2' ) );    /* Uncompressed Y'CbCr, 8-bit-per-component 4:2:2 */
 
-    /* Other Type */
-    ISOM_CODEC_TYPE_ENCS_SYSTEM = LSMASH_4CC( 'e', 'n', 'c', 's' ),   /* Encrypted Systems stream */
-    ISOM_CODEC_TYPE_MP4S_SYSTEM = LSMASH_4CC( 'm', 'p', '4', 's' ),   /* MPEG-4 Systems */
+/* Text CODEC identifiers */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_ENCT_TEXT,   LSMASH_4CC( 'e', 'n', 'c', 't' ) );    /* Encrypted Text */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_STPP_TEXT,   LSMASH_4CC( 's', 't', 'p', 'p' ) );    /* Sub-titles (Timed Text) */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_TX3G_TEXT,   LSMASH_4CC( 't', 'x', '3', 'g' ) );    /* Timed Text stream */
 
-    LSMASH_CODEC_TYPE_RAW       = LSMASH_4CC( 'r', 'a', 'w', ' ' ),   /* Either video or audio */
-} lsmash_codec_type;
+DEFINE_QTFF_CODEC_TYPE( QT_CODEC_TYPE_TEXT_TEXT,     LSMASH_4CC( 't', 'e', 'x', 't' ) );    /* QuickTime Text Media */
+
+/* Hint CODEC identifiers */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_FDP_HINT,    LSMASH_4CC( 'f', 'd', 'p', ' ' ) );    /* File delivery hints */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_M2TS_HINT,   LSMASH_4CC( 'm', '2', 't', 's' ) );    /* MPEG-2 transport stream for DMB */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_PM2T_HINT,   LSMASH_4CC( 'p', 'm', '2', 't' ) );    /* Protected MPEG-2 Transport */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_PRTP_HINT,   LSMASH_4CC( 'p', 'r', 't', 'p' ) );    /* Protected RTP Reception */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_RM2T_HINT,   LSMASH_4CC( 'r', 'm', '2', 't' ) );    /* MPEG-2 Transport Reception */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_RRTP_HINT,   LSMASH_4CC( 'r', 'r', 't', 'p' ) );    /* RTP reception */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_RSRP_HINT,   LSMASH_4CC( 'r', 's', 'r', 'p' ) );    /* SRTP Reception */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_RTP_HINT,    LSMASH_4CC( 'r', 't', 'p', ' ' ) );    /* RTP Hints */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SM2T_HINT,   LSMASH_4CC( 's', 'm', '2', 't' ) );    /* MPEG-2 Transport Server */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SRTP_HINT,   LSMASH_4CC( 's', 'r', 't', 'p' ) );    /* SRTP Hints */
+
+/* Metadata CODEC identifiers */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_IXSE_META,   LSMASH_4CC( 'i', 'x', 's', 'e' ) );    /* DVB Track Level Index Track */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_METT_META,   LSMASH_4CC( 'm', 'e', 't', 't' ) );    /* Text timed metadata */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_METX_META,   LSMASH_4CC( 'm', 'e', 't', 'x' ) );    /* XML timed metadata */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MLIX_META,   LSMASH_4CC( 'm', 'l', 'i', 'x' ) );    /* DVB Movie level index track */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_OKSD_META,   LSMASH_4CC( 'o', 'k', 's', 'd' ) );    /* OMA Keys */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_SVCM_META,   LSMASH_4CC( 's', 'v', 'c', 'M' ) );    /* SVC metadata */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_TEXT_META,   LSMASH_4CC( 't', 'e', 'x', 't' ) );    /* Textual meta-data with MIME type */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_URIM_META,   LSMASH_4CC( 'u', 'r', 'i', 'm' ) );    /* URI identified timed metadata */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_XML_META,    LSMASH_4CC( 'x', 'm', 'l', ' ' ) );    /* XML-formatted meta-data */
+
+/* Other CODEC identifiers */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_ENCS_SYSTEM, LSMASH_4CC( 'e', 'n', 'c', 's' ) );    /* Encrypted Systems stream */
+DEFINE_ISOM_CODEC_TYPE( ISOM_CODEC_TYPE_MP4S_SYSTEM, LSMASH_4CC( 'm', 'p', '4', 's' ) );    /* MPEG-4 Systems */
+
+DEFINE_QTFF_CODEC_TYPE( LSMASH_CODEC_TYPE_RAW,       LSMASH_4CC( 'r', 'a', 'w', ' ' ) );    /* Either video or audio */
 
 typedef enum
 {
@@ -314,11 +372,11 @@ typedef struct
 
 typedef struct lsmash_codec_specific_list_tag lsmash_codec_specific_list_t;
 
-#define LSMASH_BASE_SUMMARY \
-    lsmash_summary_type summary_type; \
-    lsmash_codec_type sample_type; \
-    lsmash_codec_specific_list_t *opaque; \
-    uint32_t max_au_length;     /* buffer length for 1 access unit, typically max size of 1 audio/video frame */
+#define LSMASH_BASE_SUMMARY                     \
+    lsmash_summary_type           summary_type; \
+    lsmash_codec_type_t           sample_type;  \
+    lsmash_codec_specific_list_t *opaque;       \
+    uint32_t                      max_au_length;     /* buffer length for 1 access unit, typically max size of 1 audio/video frame */
 
 typedef struct
 {
@@ -577,6 +635,8 @@ typedef struct
                                              * User can't set this parameter manually. */
     uint8_t            vfr;                 /* whether a stream is assumed as variable frame rate
                                              * User can't set this parameter manually. */
+    uint8_t            sample_per_field;    /* whether a stream may have a sample per field
+                                             * User can't set this parameter manually. */
     uint32_t           width;               /* pixel counts of width samples have */
     uint32_t           height;              /* pixel counts of height samples have */
     char               compressorname[33];  /* a 32-byte Pascal string containing the name of the compressor that created the image */
@@ -622,20 +682,58 @@ typedef enum
 
 typedef enum
 {
-    ISOM_SAMPLE_RANDOM_ACCESS_TYPE_NONE         = 0,        /* not random access point */
-    ISOM_SAMPLE_RANDOM_ACCESS_TYPE_SYNC         = 1,        /* sync sample */
-    ISOM_SAMPLE_RANDOM_ACCESS_TYPE_CLOSED_RAP   = 1,        /* the first sample of a closed GOP */
-    ISOM_SAMPLE_RANDOM_ACCESS_TYPE_OPEN_RAP     = 2,        /* the first sample of an open GOP */
-    ISOM_SAMPLE_RANDOM_ACCESS_TYPE_UNKNOWN_RAP  = 3,        /* the first sample of an open or closed GOP */
-    ISOM_SAMPLE_RANDOM_ACCESS_TYPE_POST_ROLL    = 4,        /* the post-roll starting point of random access recovery */
-    ISOM_SAMPLE_RANDOM_ACCESS_TYPE_PRE_ROLL     = 5,        /* the pre-roll ending point of random access recovery */
+    /* flags for ISO Base Media file format */
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_NONE         = 0,
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_SYNC         = 1 << 0,   /* a sync sample */
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_RAP          = 1 << 2,   /* the first sample of a closed or an open GOP */
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED       = 1 << 3,   /* a sample in a closed GOP
+                                                             * This flag shall be set together with ISOM_SAMPLE_RANDOM_ACCESS_FLAG_RAP. */
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_OPEN         = 1 << 4,   /* a sample in an open GOP
+                                                             * This flag shall be set together with ISOM_SAMPLE_RANDOM_ACCESS_FLAG_RAP. */
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR          = 1 << 5,   /* a sample on gradual decoder refresh or random access recovery */
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR_START    = 1 << 6,   /* a sample that is the starting point of gradual decoder refresh or random access recovery
+                                                             * This flag shall be set together with ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR. */
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR_END      = 1 << 7,   /* a sample that is the ending point of gradual decoder refresh or random access recovery
+                                                             * This flag shall be set together with ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR. */
 
-    QT_SAMPLE_RANDOM_ACCESS_TYPE_NONE           = 0,        /* alias of ISOM_SAMPLE_RANDOM_ACCESS_TYPE_NONE */
-    QT_SAMPLE_RANDOM_ACCESS_TYPE_SYNC           = 1,        /* alias of ISOM_SAMPLE_RANDOM_ACCESS_TYPE_SYNC */
-    QT_SAMPLE_RANDOM_ACCESS_TYPE_PARTIAL_SYNC   = 2,        /* partial sync sample */
-    QT_SAMPLE_RANDOM_ACCESS_TYPE_CLOSED_RAP     = 1,        /* alias of ISOM_SAMPLE_RANDOM_ACCESS_TYPE_CLOSED_RAP */
-    QT_SAMPLE_RANDOM_ACCESS_TYPE_OPEN_RAP       = 2,        /* alias of ISOM_SAMPLE_RANDOM_ACCESS_TYPE_OPEN_RAP */
-} lsmash_random_access_type;
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED_RAP               /* the first sample of a closed GOP */
+        = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_RAP
+        | ISOM_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED,
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_OPEN_RAP                 /* the first sample of an open GOP */
+        = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_RAP
+        | ISOM_SAMPLE_RANDOM_ACCESS_FLAG_OPEN,
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_POST_ROLL_START          /* the post-roll starting point of random access recovery */
+        = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR
+        | ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR_START,
+    ISOM_SAMPLE_RANDOM_ACCESS_FLAG_PRE_ROLL_END             /* the pre-roll ending point of random access recovery */
+        = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR
+        | ISOM_SAMPLE_RANDOM_ACCESS_FLAG_GDR_END,
+
+    /* flags for QuickTime file format */
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_NONE           = 0,        /* alias of ISOM_SAMPLE_RANDOM_ACCESS_FLAG_NONE */
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_SYNC           = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_SYNC,
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_PARTIAL_SYNC   = 1 << 1,   /* partial sync sample
+                                                             * Partial sync sample is a sample
+                                                             * such that this sample and samples following in decoding order can be correctly decoded
+                                                             * using the first sample of the previous GOP and samples following in decoding order,
+                                                             * in addition, this sample and non-leading samples following in decoding order can be correctly decoded from this. */
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_RAP            = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_RAP,
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED         = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED,
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_OPEN           = ISOM_SAMPLE_RANDOM_ACCESS_FLAG_OPEN,
+
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED_RAP                 /* the first sample of a closed GOP */
+        = QT_SAMPLE_RANDOM_ACCESS_FLAG_RAP
+        | QT_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED,
+    QT_SAMPLE_RANDOM_ACCESS_FLAG_OPEN_RAP                   /* the first sample of an open GOP */
+        = QT_SAMPLE_RANDOM_ACCESS_FLAG_RAP
+        | QT_SAMPLE_RANDOM_ACCESS_FLAG_OPEN,
+} lsmash_random_access_flag;
+
+#define LSMASH_FLAGS_SATISFIED( x, y ) (((x) & (y)) == (y))
+#define LSMASH_IS_CLOSED_RAP( x )      LSMASH_FLAGS_SATISFIED( (x), ISOM_SAMPLE_RANDOM_ACCESS_FLAG_CLOSED_RAP )
+#define LSMASH_IS_OPEN_RAP( x )        LSMASH_FLAGS_SATISFIED( (x), ISOM_SAMPLE_RANDOM_ACCESS_FLAG_OPEN_RAP )
+#define LSMASH_IS_POST_ROLL_START( x ) LSMASH_FLAGS_SATISFIED( (x), ISOM_SAMPLE_RANDOM_ACCESS_FLAG_POST_ROLL_START )
+#define LSMASH_IS_PRE_ROLL_END( x )    LSMASH_FLAGS_SATISFIED( (x), ISOM_SAMPLE_RANDOM_ACCESS_FLAG_PRE_ROLL_END )
 
 typedef struct
 {
@@ -643,10 +741,10 @@ typedef struct
                              * If this identifier equals a certain identifier of random access recovery point,
                              * then this sample is the random access recovery point of the earliest unestablished post-roll group. */
     uint32_t complete;      /* the identifier of future random access recovery point, which is necessary for the recovery from its starting point to be completed
-                             * For muxing, this value is used only if random_access_type is set to ISOM_SAMPLE_RANDOM_ACCESS_TYPE_POST_ROLL.
+                             * For muxing, this value is used only if (ra_flags & ISOM_SAMPLE_RANDOM_ACCESS_TYPE_POST_ROLL_START) is true.
                              * The following is an example of use for gradual decoder refresh of H.264/AVC.
                              *   For each sample, set 'frame_num' to the 'identifier'.
-                             *   For samples with recovery point SEI message, set ISOM_SAMPLE_RANDOM_ACCESS_TYPE_POST_ROLL to random_access_type
+                             *   For samples with recovery point SEI message, add ISOM_SAMPLE_RANDOM_ACCESS_TYPE_POST_ROLL_START to ra_flags
                              *   and set '(frame_num + recovery_frame_cnt) % MaxFrameNum' to the 'complete'.
                              *   The above-mentioned values are set appropriately, then L-SMASH will establish appropriate post-roll grouping. */
 } lsmash_post_roll_t;
@@ -655,8 +753,8 @@ typedef struct
 {
     uint32_t distance;      /* the distance from the previous random access point or pre-roll starting point
                              * of the random access recovery point to this sample.
-                             * For muxing, this value is used only if random_access_type is not set to ISOM_SAMPLE_RANDOM_ACCESS_TYPE_NONE
-                             * or ISOM_SAMPLE_RANDOM_ACCESS_TYPE_POST_ROLL.
+                             * For muxing, this value is used only if ra_flags is not set to ISOM_SAMPLE_RANDOM_ACCESS_TYPE_NONE
+                             * and LSMASH_IS_POST_ROLL_START( ra_flags ) is false.
                              * Some derived specifications forbid using pre-roll settings and use post-roll settings instead (e.g. AVC uses only post-roll).
                              * The following is an example of pre-roll distance for representing audio decoder delay derived from composition.
                              *   Typical AAC encoding uses a transform over consecutive sets of 2048 audio samples,
@@ -673,7 +771,7 @@ typedef struct
     uint8_t independent;
     uint8_t disposable;
     uint8_t redundant;
-    lsmash_random_access_type random_access_type;
+    lsmash_random_access_flag ra_flags;
     lsmash_post_roll_t        post_roll;
     lsmash_pre_roll_t         pre_roll;
 } lsmash_sample_property_t;
@@ -1021,7 +1119,7 @@ typedef struct
                                              * You can't set this parameter manually. */
     uint32_t number_of_tracks;              /* the number of tracks in the movie
                                              * You can't set this parameter manually. */
-    /* The following parameters are recognized only when a file is read as an Apple MPEG-4 or QuickTime file fromat. */
+    /* The following parameters are recognized only when a file is read as an Apple MPEG-4 or QuickTime file format. */
     int32_t  playback_rate;                 /* fixed point 16.16 number. 0x00010000 is normal forward playback and default value. */
     int32_t  playback_volume;               /* fixed point 8.8 number. 0x0100 is full volume and default value. */
     int32_t  preview_time;                  /* the time value in the movie at which the preview begins */
@@ -1135,7 +1233,7 @@ int lsmash_get_cts_from_media_timeline( lsmash_root_t *root, uint32_t track_ID, 
 int lsmash_get_composition_to_decode_shift_from_media_timeline( lsmash_root_t *root, uint32_t track_ID, uint32_t *ctd_shift );
 int lsmash_get_closest_random_accessible_point_from_media_timeline( lsmash_root_t *root, uint32_t track_ID, uint32_t sample_number, uint32_t *rap_number );
 int lsmash_get_closest_random_accessible_point_detail_from_media_timeline( lsmash_root_t *root, uint32_t track_ID, uint32_t sample_number,
-                                                                           uint32_t *rap_number, lsmash_random_access_type *type, uint32_t *leading, uint32_t *distance );
+                                                                           uint32_t *rap_number, lsmash_random_access_flag *ra_flags, uint32_t *leading, uint32_t *distance );
 uint32_t lsmash_get_sample_count_in_media_timeline( lsmash_root_t *root, uint32_t track_ID );
 uint32_t lsmash_get_max_sample_size_in_media_timeline( lsmash_root_t *root, uint32_t track_ID );
 uint64_t lsmash_get_media_duration_from_media_timeline( lsmash_root_t *root, uint32_t track_ID );
@@ -1388,7 +1486,7 @@ typedef struct
 int lsmash_setup_dts_specific_parameters_from_frame( lsmash_dts_specific_parameters_t *param, uint8_t *data, uint32_t data_length );
 uint8_t lsmash_dts_get_stream_construction( lsmash_dts_construction_flag flags );
 lsmash_dts_construction_flag lsmash_dts_get_construction_flags( uint8_t stream_construction );
-uint32_t lsmash_dts_get_codingname( lsmash_dts_specific_parameters_t *param );
+lsmash_codec_type_t lsmash_dts_get_codingname( lsmash_dts_specific_parameters_t *param );
 uint8_t *lsmash_create_dts_specific_info( lsmash_dts_specific_parameters_t *param, uint32_t *data_length );
 int lsmash_append_dts_reserved_box( lsmash_dts_specific_parameters_t *param, uint8_t *box_data, uint32_t box_size );
 void lsmash_remove_dts_reserved_box( lsmash_dts_specific_parameters_t *param );
@@ -2067,7 +2165,7 @@ typedef enum
     ITUNES_METADATA_ITEM_RELEASE_DATE               = LSMASH_4CC( 0xA9, 'd', 'a', 'y' ),    /* YYYY-MM-DD format string (may be incomplete, i.e. only year) */
     ITUNES_METADATA_ITEM_ENCODED_BY                 = LSMASH_4CC( 0xA9, 'e', 'n', 'c' ),    /* Person or company that encoded the recording */
     ITUNES_METADATA_ITEM_USER_GENRE                 = LSMASH_4CC( 0xA9, 'g', 'e', 'n' ),    /* User Genre user-specified string */
-    ITUNES_METADATA_ITEM_0XA9_GROUPING              = LSMASH_4CC( 0xA9, 'g', 'r', 'p' ),    /* Grouping */
+    ITUNES_METADATA_ITEM_GROUPING                   = LSMASH_4CC( 0xA9, 'g', 'r', 'p' ),    /* Grouping */
     ITUNES_METADATA_ITEM_LYRICS                     = LSMASH_4CC( 0xA9, 'l', 'y', 'r' ),    /* Lyrics */
     ITUNES_METADATA_ITEM_TITLE                      = LSMASH_4CC( 0xA9, 'n', 'a', 'm' ),    /* Title / Song Name */
     ITUNES_METADATA_ITEM_TRACK_SUBTITLE             = LSMASH_4CC( 0xA9, 's', 't', '3' ),    /* Track Sub-Title */
@@ -2077,7 +2175,11 @@ typedef enum
     ITUNES_METADATA_ITEM_PODCAST_CATEGORY           = LSMASH_4CC( 'c', 'a', 't', 'g' ),     /* Podcast Category */
     ITUNES_METADATA_ITEM_COPYRIGHT                  = LSMASH_4CC( 'c', 'p', 'r', 't' ),     /* Copyright */
     ITUNES_METADATA_ITEM_DESCRIPTION                = LSMASH_4CC( 'd', 'e', 's', 'c' ),     /* Description (limited to 255 bytes) */
-    ITUNES_METADATA_ITEM_GROUPING                   = LSMASH_4CC( 'g', 'r', 'u', 'p' ),     /* Grouping */
+    ITUNES_METADATA_ITEM_GROUPING_DRAFT             = LSMASH_4CC( 'g', 'r', 'u', 'p' ),     /* Grouping
+                                                                                             * Note: This identifier is defined in
+                                                                                             *       iTunes Metadata Format Specification (Preliminary draft),
+                                                                                             *       but not used by iTunes actually it seems.
+                                                                                             *       We recommend you use ITUNES_METADATA_ITEM_GROUPING instead of this. */
     ITUNES_METADATA_ITEM_PODCAST_KEYWORD            = LSMASH_4CC( 'k', 'e', 'y', 'w' ),     /* Podcast Keywords */
     ITUNES_METADATA_ITEM_LONG_DESCRIPTION           = LSMASH_4CC( 'l', 'd', 'e', 's' ),     /* Long Description */
     ITUNES_METADATA_ITEM_PURCHASE_DATE              = LSMASH_4CC( 'p', 'u', 'r', 'd' ),     /* Purchase Date */

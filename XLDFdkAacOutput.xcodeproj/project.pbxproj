@@ -19,7 +19,8 @@
 		BF32E6FB15B99FEC005120AB /* summary.c in Sources */ = {isa = PBXBuildFile; fileRef = BF32E6EE15B99FEC005120AB /* summary.c */; };
 		BF32E6FD15B99FEC005120AB /* utils.c in Sources */ = {isa = PBXBuildFile; fileRef = BF32E6F115B99FEC005120AB /* utils.c */; };
 		BF32E72C15B9A0B5005120AB /* write.c in Sources */ = {isa = PBXBuildFile; fileRef = BF32E6F315B99FEC005120AB /* write.c */; };
-		BFB760A715E7760900B77BE6 /* alac.c in Sources */ = {isa = PBXBuildFile; fileRef = BFB760A615E7760900B77BE6 /* alac.c */; };
+		BF3CE1C91674A6BE0063707B /* alac.c in Sources */ = {isa = PBXBuildFile; fileRef = BFB760A615E7760900B77BE6 /* alac.c */; };
+		BF567EBA16A5636E0024A3C8 /* box.c in Sources */ = {isa = PBXBuildFile; fileRef = BF567EB916A5636E0024A3C8 /* box.c */; };
 		BFD3788E15E008E4009FA0BD /* description.c in Sources */ = {isa = PBXBuildFile; fileRef = BFD3788D15E008E4009FA0BD /* description.c */; };
 		BFD3789515E009F8009FA0BD /* dts.c in Sources */ = {isa = PBXBuildFile; fileRef = BFD3789115E009F8009FA0BD /* dts.c */; };
 		BFD3789615E009F8009FA0BD /* h264.c in Sources */ = {isa = PBXBuildFile; fileRef = BFD3789315E009F8009FA0BD /* h264.c */; };
@@ -132,6 +133,7 @@
 		BF32E6F215B99FEC005120AB /* utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils.h; sourceTree = "<group>"; };
 		BF32E6F315B99FEC005120AB /* write.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = write.c; sourceTree = "<group>"; };
 		BF32E6F415B99FEC005120AB /* write.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = write.h; sourceTree = "<group>"; };
+		BF567EB916A5636E0024A3C8 /* box.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = box.c; sourceTree = "<group>"; };
 		BFB760A615E7760900B77BE6 /* alac.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = alac.c; sourceTree = "<group>"; };
 		BFD3787C15E00794009FA0BD /* description.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = description.h; sourceTree = "<group>"; };
 		BFD3788D15E008E4009FA0BD /* description.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = description.c; sourceTree = "<group>"; };
@@ -421,6 +423,7 @@
 				BFD3789915E00A07009FA0BD /* a52.c */,
 				BFD3789A15E00A07009FA0BD /* a52.h */,
 				BFB760A615E7760900B77BE6 /* alac.c */,
+				BF567EB916A5636E0024A3C8 /* box.c */,
 				BF32E6DD15B99FEC005120AB /* box.h */,
 				BF32E6DE15B99FEC005120AB /* common */,
 				BFD3788D15E008E4009FA0BD /* description.c */,
@@ -853,7 +856,6 @@
 				BFD3789615E009F8009FA0BD /* h264.c in Sources */,
 				BFD3789B15E00A07009FA0BD /* a52.c in Sources */,
 				BFD378A015E00A11009FA0BD /* vc1.c in Sources */,
-				BFB760A715E7760900B77BE6 /* alac.c in Sources */,
 				BFF31337164F79EB002E567F /* aacenc.cpp in Sources */,
 				BFF31338164F79EB002E567F /* aacenc_hcr.cpp in Sources */,
 				BFF31339164F79EB002E567F /* aacenc_lib.cpp in Sources */,
@@ -926,6 +928,8 @@
 				BFF3139E164F79EB002E567F /* ton_corr.cpp in Sources */,
 				BFF3139F164F79EB002E567F /* tran_det.cpp in Sources */,
 				BFF313C4164F7C23002E567F /* genericStds.cpp in Sources */,
+				BF3CE1C91674A6BE0063707B /* alac.c in Sources */,
+				BF567EBA16A5636E0024A3C8 /* box.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

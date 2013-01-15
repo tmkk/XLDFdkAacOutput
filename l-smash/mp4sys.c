@@ -957,7 +957,7 @@ int mp4sys_print_codec_specific( FILE *fp, lsmash_root_t *root, isom_box_t *box,
     assert( ext->format == EXTENSION_FORMAT_BOX && ext->form.box );
     isom_esds_t *esds = (isom_esds_t *)ext->form.box;
     int indent = level;
-    lsmash_ifprintf( fp, indent++, "[%s: Elemental Stream Descriptor Box]\n", isom_4cc2str( esds->type ) );
+    lsmash_ifprintf( fp, indent++, "[%s: Elemental Stream Descriptor Box]\n", isom_4cc2str( esds->type.fourcc ) );
     lsmash_ifprintf( fp, indent, "position = %"PRIu64"\n", esds->pos );
     lsmash_ifprintf( fp, indent, "size = %"PRIu64"\n", esds->size );
     lsmash_ifprintf( fp, indent, "version = %"PRIu8"\n", esds->version );
@@ -1235,7 +1235,7 @@ uint8_t *lsmash_create_mp4sys_decoder_config( lsmash_mp4sys_decoder_parameters_t
         return NULL;
     }
     lsmash_bs_put_be32( bs, ISOM_FULLBOX_COMMON_SIZE + mp4sys_update_ES_Descriptor_size( esd ) );
-    lsmash_bs_put_be32( bs, ISOM_BOX_TYPE_ESDS );
+    lsmash_bs_put_be32( bs, ISOM_BOX_TYPE_ESDS.fourcc );
     lsmash_bs_put_be32( bs, 0 );
     mp4sys_put_ES_Descriptor( bs, esd );
     mp4sys_remove_ES_Descriptor( esd );
@@ -1272,7 +1272,7 @@ int mp4sys_construct_decoder_config( lsmash_codec_specific_t *dst, lsmash_codec_
     lsmash_bs_t *bs = lsmash_bs_create( NULL );
     if( !bs )
         return -1;
-    if( lsmash_bs_import_data( bs, data, src->size - (src->data.unstructured - data) ) )
+    if( lsmash_bs_import_data( bs, data, src->size - (data - src->data.unstructured) ) )
     {
         lsmash_bs_cleanup( bs );
         return -1;
