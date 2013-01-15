@@ -9,7 +9,6 @@
 #import "XLDFdkAacOutputTask.h"
 typedef int64_t xldoffset_t;
 #import "XLDTrack.h"
-#import "l-smash/utils.h"
 #import "l-smash/mp4a.h"
 struct lsmash_codec_specific_list_tag
 {
