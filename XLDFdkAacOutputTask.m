@@ -242,7 +242,7 @@ fail:
 	summary->samples_in_frame       = 1024;
 	summary->aot                    = MP4A_AUDIO_OBJECT_TYPE_AAC_LC;
 	summary->sbr_mode               = sbrEnabled ? MP4A_AAC_SBR_BACKWARD_COMPATIBLE : MP4A_AAC_SBR_NOT_SPECIFIED;
-	lsmash_setup_AudioSpecificConfig(summary);
+	
 	uint32_t data_length;
 	uint8_t *data = mp4a_export_AudioSpecificConfig(summary->aot, summary->frequency, summary->channels, summary->sbr_mode,
 													NULL, 0, &data_length );
