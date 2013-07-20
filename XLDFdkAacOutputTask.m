@@ -424,6 +424,28 @@ fail:
 			metadata.name = NULL;
 			lsmash_set_itunes_metadata(root, metadata);
 		}
+		else {
+			NSMutableString *tmpStr = [NSMutableString string];
+			if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_START]) {
+				[tmpStr appendFormat:@"Start TC=%@",[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_START]];
+			}
+			if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_DURATION]) {
+				if([tmpStr length]) [tmpStr appendFormat:@"; Duration TC=%@",[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_DURATION]];
+				else [tmpStr appendFormat:@"Duration TC=%@",[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_DURATION]];
+			}
+			if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MEDIA_FPS]) {
+				if([tmpStr length]) [tmpStr appendFormat:@"; Media FPS=%@",[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MEDIA_FPS]];
+				else [tmpStr appendFormat:@"Media FPS=%@",[[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MEDIA_FPS]];
+			}
+			if([tmpStr length]) {
+				metadata.item = ITUNES_METADATA_ITEM_USER_COMMENT;
+				metadata.type = ITUNES_METADATA_TYPE_STRING;
+				metadata.value.string = (char*)[tmpStr UTF8String];
+				metadata.meaning = NULL;
+				metadata.name = NULL;
+				lsmash_set_itunes_metadata(root, metadata);
+			}
+		}
 		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_LYRICS]) {
 			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_LYRICS];
 			metadata.item = ITUNES_METADATA_ITEM_LYRICS;
@@ -648,6 +670,33 @@ fail:
 			metadata.value.string = (char*)[str UTF8String];
 			metadata.meaning = "com.apple.iTunes";
 			metadata.name = "MusicBrainz Work Id";
+			lsmash_set_itunes_metadata(root, metadata);
+		}
+		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_START]) {
+			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_START];
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "SMPTE_TIMECODE_START";
+			lsmash_set_itunes_metadata(root, metadata);
+		}
+		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_DURATION]) {
+			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_SMPTE_TIMECODE_DURATION];
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "SMPTE_TIMECODE_DURATION";
+			lsmash_set_itunes_metadata(root, metadata);
+		}
+		if([[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MEDIA_FPS]) {
+			NSString *str = [[(XLDTrack *)track metadata] objectForKey:XLD_METADATA_MEDIA_FPS];
+			metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
+			metadata.type = ITUNES_METADATA_TYPE_STRING;
+			metadata.value.string = (char*)[str UTF8String];
+			metadata.meaning = "com.apple.iTunes";
+			metadata.name = "MEDIA_FPS";
 			lsmash_set_itunes_metadata(root, metadata);
 		}
 		
