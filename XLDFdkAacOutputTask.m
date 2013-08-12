@@ -824,19 +824,15 @@ fail:
 		AACENC_InfoStruct info;
 		aacEncInfo(encoder,&info);
 		char iTunSMPB[256];
+		uint32_t padding_boundary = 1024;
 		uint32_t delay = info.encoderDelay;
 		uint64_t duration = totalFrames;
 		if(sbrEnabled) {
 			duration /= 2;
-#if 1
-			/* HACK for iTunes : Apple's decoder does not play gaplessly with the provided delay value */
-			if(!psEnabled) delay = 2048;
-			else delay = 2544;
-#else
 			delay /= 2;
-#endif
+			padding_boundary *= 2;
 		}
-		uint32_t padding = (uint32_t)ceil((duration + delay)/1024.0)*1024 - (duration + delay);
+		uint32_t padding = (uint32_t)(((duration + delay + padding_boundary - 1) & ~(padding_boundary - 1)) - (duration + delay));
 		sprintf(iTunSMPB," 00000000 %08X %08X %016llX 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",delay,padding,duration);
 		metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
 		metadata.type = ITUNES_METADATA_TYPE_STRING;
