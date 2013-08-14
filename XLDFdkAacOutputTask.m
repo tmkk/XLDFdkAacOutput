@@ -829,7 +829,7 @@ fail:
 		if(sbrEnabled) {
 			duration /= 2;
 			delay /= 2;
-			delay -= (psEnabled) ? 391 : 481;
+			delay -= 481;
 			/*
 			 * This subtracts the SBR and PS decoder engine delays from fdk-aac's computed and summed encoder and decoder
 			 * delay, as iTunes appears not to include that decoder delay in the delay field included in the iTunSMPB
