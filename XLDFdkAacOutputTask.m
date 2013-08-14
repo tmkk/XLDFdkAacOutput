@@ -824,15 +824,22 @@ fail:
 		AACENC_InfoStruct info;
 		aacEncInfo(encoder,&info);
 		char iTunSMPB[256];
-		uint32_t padding_boundary = 1024;
 		uint32_t delay = info.encoderDelay;
 		uint64_t duration = totalFrames;
 		if(sbrEnabled) {
 			duration /= 2;
 			delay /= 2;
-			padding_boundary *= 2;
+			delay -= (psEnabled) ? 391 : 481;
+			/*
+			 * This subtracts the SBR and PS decoder engine delays from fdk-aac's computed and summed encoder and decoder
+			 * delay, as iTunes appears not to include that decoder delay in the delay field included in the iTunSMPB
+			 * atom. Neither Winamp nor foobar2000 appear to behave like this, so files will be gapless in iTunes but not
+			 * the other two players. It is unknown how many other players may be affected by this.
+			 *
+			 * For reference: http://www.hydrogenaudio.org/forums/index.php?showtopic=98450
+			 */
 		}
-		uint32_t padding = (uint32_t)(((duration + delay + padding_boundary - 1) & ~(padding_boundary - 1)) - (duration + delay));
+		uint32_t padding = (uint32_t)(((duration + delay + 1023) & ~1023) - (duration + delay));
 		sprintf(iTunSMPB," 00000000 %08X %08X %016llX 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",delay,padding,duration);
 		metadata.item = ITUNES_METADATA_ITEM_CUSTOM;
 		metadata.type = ITUNES_METADATA_TYPE_STRING;
