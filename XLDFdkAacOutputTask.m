@@ -824,10 +824,15 @@ fail:
 		AACENC_InfoStruct info;
 		aacEncInfo(encoder,&info);
 		char iTunSMPB[256];
+#if AACENCODER_LIB_VL0 < 4
 		uint32_t delay = info.encoderDelay;
+#else
+        uint32_t delay = info.nDelay;
+#endif
 		uint64_t duration = totalFrames;
 		if(sbrEnabled) {
 			duration /= 2;
+#if AACENCODER_LIB_VL0 < 4
 			delay /= 2;
 			delay -= 481;
 			/*
@@ -838,6 +843,9 @@ fail:
 			 *
 			 * For reference: http://www.hydrogenaudio.org/forums/index.php?showtopic=98450
 			 */
+#else
+            delay = info.nDelayCore / 2;
+#endif
 		}
 		uint32_t padding = (uint32_t)(((duration + delay + 1023) & ~1023) - (duration + delay));
 		sprintf(iTunSMPB," 00000000 %08X %08X %016llX 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",delay,padding,duration);
