@@ -1378,7 +1378,6 @@
 					"\"$(SRCROOT)/fdk-aac/libMpegTPEnc/src\"",
 				);
 				PRODUCT_NAME = XLDFdkAacOutput;
-				SDKROOT = macosx10.13;
 				WRAPPER_EXTENSION = bundle;
 			};
 			name = Debug;
@@ -1397,7 +1396,6 @@
 					"\"$(SRCROOT)/fdk-aac/libMpegTPEnc/src\"",
 				);
 				PRODUCT_NAME = XLDFdkAacOutput;
-				SDKROOT = macosx10.13;
 				WRAPPER_EXTENSION = bundle;
 			};
 			name = Release;
