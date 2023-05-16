@@ -9,7 +9,9 @@
 #import "XLDFdkAacOutputTask.h"
 typedef int64_t xldoffset_t;
 #import "XLDTrack.h"
-#import "l-smash/mp4a.h"
+#import "l-smash/common/internal.h"
+#import "l-smash/codecs/mp4a.h"
+#import "l-smash/core/box.h"
 struct lsmash_codec_specific_list_tag
 {
     lsmash_entry_list_t list;
@@ -199,19 +201,23 @@ fail:
 - (BOOL)openFileForOutput:(NSString *)str withTrackData:(id)track
 {
 	/* create mp4 file instance */
-	root = lsmash_open_movie([str UTF8String],LSMASH_FILE_MODE_WRITE);
+	root = lsmash_create_root();
+	if (lsmash_open_file([str UTF8String], 0, &file_param) < 0) {
+		return NO;
+	}
+	lsmash_brand_type brands[3];
+	brands[0] = ISOM_BRAND_TYPE_M4A;
+	brands[1] = ISOM_BRAND_TYPE_MP42;
+	brands[2] = ISOM_BRAND_TYPE_ISOM;
+	file_param.major_brand = brands[0];
+	file_param.brands = brands;
+	file_param.brand_count = 3;
+	file_param.minor_version = 0x00000000;
+	lsmash_set_file( root, &file_param );
 	
 	/* setup movie params */
 	lsmash_movie_parameters_t movie_param;
 	lsmash_initialize_movie_parameters( &movie_param );
-	uint32_t brands[3];
-	brands[0] = ISOM_BRAND_TYPE_M4A;
-	brands[1] = ISOM_BRAND_TYPE_MP42;
-	brands[2] = ISOM_BRAND_TYPE_ISOM;
-	movie_param.major_brand = brands[0];
-	movie_param.brands = brands;
-	movie_param.number_of_brands = 3;
-	movie_param.minor_version = 0x00000000;
 	lsmash_set_movie_parameters( root, &movie_param );
 	
 	/* create track */
@@ -272,7 +278,7 @@ fail:
 	}
 	free( data );
 	
-	if( lsmash_add_entry( &summary->opaque->list, specific ) ) {
+	if( lsmash_list_add_entry( &summary->opaque->list, specific ) ) {
 		lsmash_cleanup_summary( (lsmash_summary_t *)summary );
 		lsmash_destroy_codec_specific_data( specific );
 		summary = NULL;
@@ -890,6 +896,26 @@ fail:
 		metadata.name = "Encoding Params";
 		lsmash_set_itunes_metadata(root, metadata);
 		free(info);
+		
+		/* Add padding for metadata editing */
+		isom_free_t *padding = isom_add_free(root->file->moov->udta->meta);
+		padding->precedence = LSMASH_BOX_PRECEDENCE_L;
+		padding->length = 4096;
+		padding->data = calloc(1, 4096);
+		/* Since a predefined precedence of the free atom is higher than the ilst atom,
+		   we should move the free atom to the end of the meta atom manually. */
+		for (lsmash_entry_t *x = padding->parent->extensions.head->next; x; x = x->next)
+		{
+			isom_box_t *box = (isom_box_t *)x->data;
+			if (box == (isom_box_t *)padding) {
+				lsmash_entry_t *y = x;
+				for (; y->next; y = y->next) {
+					y->data = y->next->data;
+				}
+				y->data = box;
+				break;
+			}
+		}
 	}
 	
 	lsmash_adhoc_remux_t moov_to_front;
@@ -903,6 +929,7 @@ fail:
 - (void)closeFile
 {
 	aacEncClose(&encoder);
+	lsmash_close_file(&file_param);
 }
 
 - (void)setEnableAddTag:(BOOL)flag

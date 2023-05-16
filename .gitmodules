@@ -1,3 +1,6 @@
 [submodule "fdk-aac"]
 	path = fdk-aac
 	url = https://github.com/mstorsjo/fdk-aac.git
+[submodule "l-smash"]
+	path = l-smash
+	url = https://github.com/l-smash/l-smash.git

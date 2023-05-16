@@ -66,6 +66,7 @@
 	BOOL psEnabled;
 	lsmash_root_t *root;
 	lsmash_audio_summary_t *summary;
+	lsmash_file_parameters_t file_param;
 	uint32_t tid;
 	uint32_t sample_entry;
 	uint32_t au_number;
