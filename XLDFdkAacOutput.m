@@ -110,24 +110,24 @@
 	if([o_encoderMode indexOfSelectedItem] == 0) {
 		[o_bitrate setEnabled:YES];
 		[o_complexity setEnabled:YES];
-		[o_text1 setTextColor:[NSColor blackColor]];
-		[o_text2 setTextColor:[NSColor blackColor]];
-		[o_text5 setTextColor:[NSColor blackColor]];
+		[o_text1 setTextColor:[NSColor controlTextColor]];
+		[o_text2 setTextColor:[NSColor controlTextColor]];
+		[o_text5 setTextColor:[NSColor controlTextColor]];
 		[o_vbrQuality setEnabled:NO];
-		[o_summary setTextColor:[NSColor grayColor]];
-		[o_text3 setTextColor:[NSColor grayColor]];
-		[o_text4 setTextColor:[NSColor grayColor]];
+		[o_summary setTextColor:[NSColor disabledControlTextColor]];
+		[o_text3 setTextColor:[NSColor disabledControlTextColor]];
+		[o_text4 setTextColor:[NSColor disabledControlTextColor]];
 	}
 	else if([o_encoderMode indexOfSelectedItem] == 1) {
 		[o_bitrate setEnabled:NO];
 		[o_complexity setEnabled:NO];
-		[o_text1 setTextColor:[NSColor grayColor]];
-		[o_text2 setTextColor:[NSColor grayColor]];
-		[o_text5 setTextColor:[NSColor grayColor]];
+		[o_text1 setTextColor:[NSColor disabledControlTextColor]];
+		[o_text2 setTextColor:[NSColor disabledControlTextColor]];
+		[o_text5 setTextColor:[NSColor disabledControlTextColor]];
 		[o_vbrQuality setEnabled:YES];
-		[o_summary setTextColor:[NSColor blackColor]];
-		[o_text3 setTextColor:[NSColor blackColor]];
-		[o_text4 setTextColor:[NSColor blackColor]];
+		[o_summary setTextColor:[NSColor controlTextColor]];
+		[o_text3 setTextColor:[NSColor controlTextColor]];
+		[o_text4 setTextColor:[NSColor controlTextColor]];
 	}
 	switch ([o_vbrQuality intValue]) {
 		case 0:
@@ -165,11 +165,11 @@
 	}
 	if([o_manualLPF state] == NSOnState) {
 		[o_LPFFreq setEnabled:YES];
-		[o_text6 setTextColor:[NSColor blackColor]];
+		[o_text6 setTextColor:[NSColor controlTextColor]];
 	}
 	else {
 		[o_LPFFreq setEnabled:NO];
-		[o_text6 setTextColor:[NSColor grayColor]];
+		[o_text6 setTextColor:[NSColor disabledControlTextColor]];
 	}
 }
 
