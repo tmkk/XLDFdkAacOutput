@@ -12,6 +12,13 @@ HOW TO USE
 2. Copy XLDFdkAacOutput.bundle to `~/Library/Application Support/XLD/PlugIns` directory
 3. Launch XLD and configure the plugin
 
+```sh
+% git clone --recursive --shallow-submodules https://github.com/tmkk/XLDFdkAacOutput.git
+% cd XLDFdkAacOutput
+% xcodebuild -configuration Release
+% cp -a build/Release/XLDFdkAacOutput.bundle ~/Library/Application\ Support/XLD/PlugIns
+```
+
 
 VBR QUALITY MAPPING
 -------------------
